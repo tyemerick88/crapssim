@@ -6,6 +6,7 @@ from typing import Hashable, Literal, Protocol, SupportsFloat, TypedDict, cast
 
 from crapssim.dice import Dice
 from crapssim.point import Point
+from crapssim.rules import CraplessRules, Rules
 
 __all__ = [
     "BetResult",
@@ -41,6 +42,20 @@ __all__ = [
     "Lay",
 ]
 ALL_DICE_NUMBERS = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+CLASSIC_POINTS = (4, 5, 6, 8, 9, 10)
+CRAPLESS_POINTS = (2, 3, 4, 5, 6, 8, 9, 10, 11, 12)
+
+
+def _is_number_allowed_by_rules(
+    number: int,
+    rules: Rules,
+    classic_numbers: tuple[int, ...] | list[int] = CLASSIC_POINTS,
+    crapless_numbers: tuple[int, ...] | list[int] = CRAPLESS_POINTS,
+) -> bool:
+    """Return whether a number is valid for the given rule set."""
+    if isinstance(rules, CraplessRules):
+        return number in crapless_numbers
+    return number in classic_numbers
 
 
 class TableSettings(TypedDict, total=False):
@@ -61,6 +76,7 @@ class Table(Protocol):
     dice: Dice
     point: Point
     settings: TableSettings
+    rules: Rules
 
 
 class Player(Protocol):
@@ -333,22 +349,30 @@ class PassLine(_WinningLosingNumbersBet):
     """
 
     def get_winning_numbers(self, table: Table) -> list[int]:
-        """Winnings numbers are 7, 11 before point is set,
-        and the point number after point is set. Uses table
-        to determine the point number and status.
+        """Winning numbers are come-out winners before a point is set,
+        and the current point number after it is established.
+        Uses table to determine the point number and status.
+        For regular craps, come-out winners are 7, 11
+        For crapless craps, the only come-out winner is 7
         """
         if table.point.number is None:
-            return [7, 11]
-        return [table.point.number]
+            return table.rules.come_out_winners()
+        return table.rules.point_winners(table.point.number)
 
     def get_losing_numbers(self, table: Table) -> list[int]:
-        """Losing numbers are 2, 3, 12 before point is set,
-        and 7 after point is set. Uses table to determine the
-        point number and status.
+        """Losing numbers are come-out losers before a point is set,
+        and the table's point loser numbers after it is established.
+        Uses table to determine the point number and status.
         """
         if table.point.number is None:
-            return [2, 3, 12]
-        return [7]
+            return table.rules.come_out_losers()
+        return table.rules.point_losers(table.point.number)
+
+    # TODO: pass line bets do not have push numbers?
+    def get_push_numbers(self, table: Table) -> list[int]:
+        if table.point.number is None:
+            return table.rules.come_out_pushers()
+        return table.rules.point_pushers(table.point.number)
 
     def get_payout_ratio(self, table: Table) -> float:
         """PassLine always pays out 1:1"""
@@ -384,29 +408,34 @@ class Come(_WinningLosingNumbersBet):
 
     def __init__(self, amount: SupportsFloat, number: int | None = None):
         super().__init__(amount)
-        possible_numbers = (4, 5, 6, 7, 8, 9, 10)
+        possible_numbers = CRAPLESS_POINTS # TODO: should this have all crapless numbers?
         if number in possible_numbers:
             self.number = number
         else:
             self.number = None
 
     def get_winning_numbers(self, table: Table) -> list[int]:
-        """Winnings numbers are 7, 11 before the number is set,
+        """Winning numbers are come-out winners before the number is set,
         and the number after it is set. Number is stored within
         the bet.
         """
         if self.number is None:
-            return [7, 11]
+            return table.rules.come_out_winners()
         return [self.number]
 
     def get_losing_numbers(self, table: Table) -> list[int]:
-        """Losing numbers are 2, 3, 12 before the number is set,
-        and 7 after it is set. Number is stored within
-        the bet.
+        """Losing numbers are come-out losers before the number is set,
+        and 7 after it is set. Number is stored within the bet.
         """
         if self.number is None:
-            return [2, 3, 12]
+            return table.rules.come_out_losers()
         return [7]
+
+    # TODO: come bets do not have push numbers?
+    def get_push_numbers(self, table: Table) -> list[int]:
+        if self.number is None:
+            return table.rules.come_out_pushers()
+        return table.rules.point_pushers(self.number)
 
     def get_payout_ratio(self, table: Table) -> float:
         """Come always pays out 1:1"""
@@ -414,9 +443,9 @@ class Come(_WinningLosingNumbersBet):
 
     def update_number(self, table: Table):
         """
-        Update the bet's number to the first number rolled if it's in (4, 5, 6, 8, 9, 10).
+        Update the bet's number to the first number rolled if it's in table.rules.point_numbers()
         """
-        possible_numbers = (4, 5, 6, 8, 9, 10)
+        possible_numbers = table.rules.point_numbers()
         if self.number is None and table.dice.total in possible_numbers:
             self.number = table.dice.total
 
@@ -434,7 +463,11 @@ class Come(_WinningLosingNumbersBet):
         Returns:
             True if the bet is allowed, otherwise false.
         """
-        return player.table.point.status == "On"
+        return (
+            player.table.point.status == "On"
+            # TODO: need to figure out a way to prevent come init to extremes on ClassicRules
+            # and _is_number_allowed_by_rules(self.number, player.table.rules)
+        )
 
     def copy(self) -> "Bet":
         """Create a fresh copy of this bet with no number"""
@@ -490,12 +523,15 @@ class DontPass(_WinningLosingNumbersBet):
         return 1.0
 
     def is_allowed(self, player: Player) -> bool:
-        """Don't Pass is allowed if the point if off.
+        """Don't Pass is allowed if the point is off and crapless rules are not in effect.
 
         Returns:
             True if the bet is allowed, otherwise false.
         """
-        return player.table.point.status == "Off"
+        return (
+            player.table.point.status == "Off"
+            and not isinstance(player.table.rules, CraplessRules)
+        )
 
 
 class DontCome(_WinningLosingNumbersBet):
@@ -511,7 +547,7 @@ class DontCome(_WinningLosingNumbersBet):
 
     def __init__(self, amount: SupportsFloat, number: int | None = None):
         super().__init__(amount)
-        possible_numbers = (4, 5, 6, 7, 8, 9, 10)
+        possible_numbers = CLASSIC_POINTS
         if number in possible_numbers:
             self.number = number
         else:
@@ -537,17 +573,20 @@ class DontCome(_WinningLosingNumbersBet):
         return 1.0
 
     def update_number(self, table: Table):
-        possible_numbers = (4, 5, 6, 7, 8, 9, 10)
+        possible_numbers = CLASSIC_POINTS
         if self.number is None and table.dice.total in possible_numbers:
             self.number = table.dice.total
 
     def is_allowed(self, player: Player) -> bool:
-        """Don't Come is only allowed if the table's point is on (accessed via player).
+        """Don't Come is only allowed if the table's point is on and crapless rules are not in effect.
 
         Returns:
             True if the bet is allowed, otherwise false.
         """
-        return player.table.point.status == "On"
+        return (
+            player.table.point.status == "On"
+            and not isinstance(player.table.rules, CraplessRules)
+        )
 
     def copy(self) -> "Bet":
         """Create a fresh copy of this bet, with no number"""
@@ -626,7 +665,18 @@ class Odds(_WinningLosingNumbersBet):
             return [self.number]
 
     def get_payout_ratio(self, table: Table) -> float:
-        light_ratios = {4: 2, 5: 3 / 2, 6: 6 / 5, 8: 6 / 5, 9: 3 / 2, 10: 2}
+        light_ratios = {
+            2: 6,
+            3: 3,
+            4: 2,
+            5: 3 / 2,
+            6: 6 / 5,
+            8: 6 / 5,
+            9: 3 / 2,
+            10: 2,
+            11: 3,
+            12: 6,
+        }
         dark_ratios = {n: 1 / x for n, x in light_ratios.items()}
 
         if self.light_side:
@@ -701,13 +751,19 @@ class Put(_SimpleBet):
     losing_numbers: list[int] = [7]
 
     def __init__(self, number: int, amount: SupportsFloat) -> None:
+        # Allow all crapless points on init, but only allow bet for extremes in CraplessRules
+        if number not in CRAPLESS_POINTS:
+            raise ValueError(f"Invalid {self.__class__} number: {number}")
         super().__init__(amount)
         self.number = number
         self.winning_numbers = [number]
         self.payout_ratio = 1.0
 
     def is_allowed(self, player: "Player") -> bool:
-        return player.table.point == "On"
+        return (
+            player.table.point == "On"
+            and _is_number_allowed_by_rules(self.number, player.table.rules)
+        ) 
 
     def copy(self) -> "Put":
         return self.__class__(self.number, self.amount)
@@ -729,22 +785,42 @@ class Put(_SimpleBet):
 class Place(_SimpleBet):
     """
     Place bet (on 4, 5, 6, 8, 9, or 10) in craps.
+    Place bet (on 2, 3, 4, 5, 6, 8, 9, 10, 11, or 12) in crapless craps.
 
-    A bet on a specific number (4, 5, 6, 8, 9, or 10) being rolled before a 7.
+    A bet on a specific number being rolled before a 7.
     Each number has a different payout ratio reflecting its probability of being rolled.
     Remains active until the number or a 7 is rolled.
     """
 
-    payout_ratios = {4: 9 / 5, 5: 7 / 5, 6: 7 / 6, 8: 7 / 6, 9: 7 / 5, 10: 9 / 5}
-    """Stores the place bet payouts: 9 to 5 on (4, 10), 7 to 5 on (5, 9), and 7 to 6 on (6, 8)."""
+    payout_ratios = {
+        2: 11 / 2,
+        3: 11 / 4,
+        4: 9 / 5,
+        5: 7 / 5,
+        6: 7 / 6,
+        8: 7 / 6,
+        9: 7 / 5,
+        10: 9 / 5,
+        11: 11 / 4,
+        12: 11 / 2,
+    }
+    """Stores the place bet payouts: 11 to 2 on (2, 12), 11 to 4 on (3, 11),
+      9 to 5 on (4, 10), 7 to 5 on (5, 9), and 7 to 6 on (6, 8)."""
     losing_numbers: list[int] = [7]
 
     def __init__(self, number: int, amount: SupportsFloat):
+        # Allow all crapless points on init, but only allow bet for extremes in CraplessRules
+        if number not in CRAPLESS_POINTS:
+            raise ValueError(f"Invalid {self.__class__} number: {number}")
         super().__init__(amount)
         self.number = number
         """The placed number, which determines payout ratio"""
         self.payout_ratio = self.payout_ratios[number]
         self.winning_numbers = [number]
+
+    def is_allowed(self, player: "Player") -> bool:
+        """Place bets are allowed on the valid numbers for the current ruleset."""
+        return _is_number_allowed_by_rules(self.number, player.table.rules)
 
     def copy(self) -> "Bet":
         """Create a fresh copy of this bet"""
@@ -802,12 +878,24 @@ class Buy(_SimpleBet):
     Vig (commission) may be taken on the win or upfront based on ``vig_paid_on_win``.
     """
 
-    true_odds = {4: 2.0, 10: 2.0, 5: 1.5, 9: 1.5, 6: 1.2, 8: 1.2}
+    true_odds = {
+        2: 6.0,
+        3: 3.0,
+        4: 2.0,
+        5: 1.5,
+        6: 1.2,
+        8: 1.2,
+        9: 1.5,
+        10: 2.0,
+        11: 3.0,
+        12: 6.0,
+    }
     losing_numbers: list[int] = [7]
 
     def __init__(self, number: int, amount: SupportsFloat) -> None:
-        if number not in (4, 5, 6, 8, 9, 10):
-            raise ValueError(f"Invalid Buy number: {number}")
+        # Allow all crapless points on init, but only allow bet for extremes in CraplessRules
+        if number not in CRAPLESS_POINTS:
+            raise ValueError(f"Invalid {self.__class__} number: {number}")
         super().__init__(amount)
         self.number = number
         self.payout_ratio = self.true_odds[number]
@@ -837,6 +925,10 @@ class Buy(_SimpleBet):
             remove = False
         return BetResult(result_amount, remove, self.amount)
 
+    def is_allowed(self, player: "Player") -> bool:
+        """Buy bets are allowed on the valid numbers for the current ruleset."""
+        return _is_number_allowed_by_rules(self.number, player.table.rules)
+
     def copy(self) -> "Buy":
         new_bet = self.__class__(self.number, self.amount)
         return new_bet
@@ -861,12 +953,24 @@ class Lay(_SimpleBet):
     pays $20, would have a $1 vig).
     """
 
-    true_odds = {4: 0.5, 10: 0.5, 5: 2 / 3, 9: 2 / 3, 6: 5 / 6, 8: 5 / 6}
+    true_odds = {
+        2: 1 / 6,
+        3: 1 / 3,
+        4: 0.5,
+        5: 2 / 3,
+        6: 5 / 6,
+        8: 5 / 6,
+        9: 2 / 3,
+        10: 0.5,
+        11: 1 / 3,
+        12: 1 / 6,
+    }
     winning_numbers: list[int] = [7]
 
     def __init__(self, number: int, amount: SupportsFloat) -> None:
-        if number not in (4, 5, 6, 8, 9, 10):
-            raise ValueError(f"Invalid Lay number: {number}")
+        # Allow all crapless points on init, but only allow bet for extremes in CraplessRules
+        if number not in CRAPLESS_POINTS:
+            raise ValueError(f"Invalid {self.__class__} number: {number}")
         super().__init__(amount)
         self.number = number
         self.payout_ratio = self.true_odds[number]
@@ -896,6 +1000,10 @@ class Lay(_SimpleBet):
             result_amount = 0
             remove = False
         return BetResult(result_amount, remove, self.amount)
+    
+    def is_allowed(self, player: "Player") -> bool:
+        """Lay bets are allowed on the valid numbers for the current ruleset."""
+        return _is_number_allowed_by_rules(self.number, player.table.rules)
 
     def copy(self) -> "Lay":
         new_bet = self.__class__(self.number, self.amount)

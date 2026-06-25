@@ -30,7 +30,7 @@ class Point:
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
             return self.status.lower() == other.lower() or str(self.number) == other
-        elif isinstance(other, int) and other in (4, 5, 6, 8, 9, 10):
+        elif isinstance(other, int) and other in (2, 3, 4, 5, 6, 8, 9, 10, 11, 12):
             return other == self.number
         elif isinstance(other, Point):
             return other.status == self.status and other.number == self.number
@@ -75,7 +75,7 @@ class Point:
             raise NotImplementedError
         return self.__eq__(other) or self.__lt__(other)
 
-    def update(self, dice_object: Dice) -> None:
+    def update(self, dice_object: Dice, point_numbers: list[int] | None = None) -> None:
         """
         Given a Dice object update the points status and number.
 
@@ -84,7 +84,8 @@ class Point:
         dice_object : Dice
             The Dice you want to update the point with
         """
-        if self.status == "Off" and dice_object.total in [4, 5, 6, 8, 9, 10]:
+        numbers = point_numbers or [4, 5, 6, 8, 9, 10]
+        if self.status == "Off" and dice_object.total in numbers:
             self.number = dice_object.total
         elif self.status == "On" and dice_object.total in [7, self.number]:
             self.number = None

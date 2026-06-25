@@ -5,6 +5,7 @@ from crapssim.dice import Dice, DicePair
 
 from .bet import Bet, BetResult, Odds, Put
 from .point import Point
+from .rules import ClassicRules, Rules
 from .strategy import BetPassLine, Strategy
 
 __all__ = ["TableUpdate", "TableSettings", "Table", "Player"]
@@ -137,7 +138,7 @@ class TableUpdate:
 
     @staticmethod
     def set_new_shooter(table: "Table") -> None:
-        if table.point == "On" and table.dice.total == 7:
+        if table.rules.should_reset_shooter(table.point, table.dice):
             table.new_shooter = True
             table.n_shooters += 1
         else:
@@ -152,7 +153,7 @@ class TableUpdate:
         """
         for player, bet in table.yield_player_bets():
             bet.update_number(table)
-        table.point.update(table.dice)
+        table.point.update(table.dice, table.rules.point_numbers())
 
         if verbose:
             print(f"Point is {table.point.status} ({table.point.number})")
@@ -182,11 +183,14 @@ class TableSettings(TypedDict, total=False):
 class Table:
     """Runtime state for a craps table simulation."""
 
-    def __init__(self, seed: int | None = None) -> None:
+    def __init__(
+        self, seed: int | None = None, rules: Rules | None = None
+    ) -> None:
         self.players: list[Player] = []
         self.point: Point = Point()
         self.seed = seed
         self.dice: Dice = Dice(self.seed)
+        self.rules: Rules = rules if rules is not None else ClassicRules()
         self.settings: TableSettings = {
             "ATS_payouts": {"all": 150, "tall": 30, "small": 30},
             "field_payouts": {2: 2, 3: 1, 4: 1, 9: 1, 10: 1, 11: 1, 12: 2},

@@ -1,8 +1,9 @@
 import pytest
 
 from crapssim import Table
-from crapssim.bet import Come
+from crapssim.bet import Come, DontCome, DontPass
 from crapssim.point import Point
+from crapssim.rules import ClassicRules, CraplessRules
 from crapssim.strategy import BetPassLine
 
 
@@ -14,6 +15,16 @@ def test_ensure_one_player():
     bankroll = table.players[0].bankroll
     strategy = table.players[0].strategy.__class__
     assert (count_zero, count_one, bankroll, strategy) == (0, 1, 100, BetPassLine)
+
+
+def test_table_uses_classic_rules_by_default():
+    table = Table()
+    assert isinstance(table.rules, ClassicRules)
+
+
+def test_table_accepts_custom_rules():
+    table = Table(rules=CraplessRules())
+    assert isinstance(table.rules, CraplessRules)
 
 
 def test_wrong_point_off():
@@ -28,6 +39,25 @@ def test_wrong_point_on():
     table.point.number = 4
     table.add_player(bankroll=500)
     assert (len(table.players[0].bets), table.players[0].bankroll) == (0, 500)
+
+
+@pytest.mark.parametrize(
+    ["status", "number", "comparison"],
+    [
+        ("On", 2, "2"),
+        ("On", 3, "3"),
+        ("On", 11, "11"),
+        ("On", 12, "12"),
+    ],
+)
+def test_point_equality_accepts_crapless_point_numbers(status, number, comparison):
+    point = Point()
+    point.number = number
+    assert point == number
+    assert point == comparison
+    assert point == status
+    assert point == str(status).lower()
+    assert point == str(status).upper()
 
 
 @pytest.mark.parametrize(
