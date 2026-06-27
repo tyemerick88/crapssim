@@ -335,8 +335,7 @@ def test_cant_instantiate_bet_object():
 
 def test_bet_base_default_methods():
     table = Table()
-    table.add_player()
-    player = table.players[0]
+    player = table.add_player()
     bet = _BetForBaseCoverage(10)
 
     assert bet.cost(table) == 10
@@ -504,6 +503,57 @@ def test_come_odds_not_is_allowed():
     assert bet.is_allowed(table.players[0]) is False
 
 
+def test_odds_light_side_with_passline():
+    """Odds.light_side property: PassLine is light_side"""
+    odds = Odds(PassLine, 6, 10)
+    assert odds.light_side is True
+
+
+def test_odds_light_side_with_come():
+    """Odds.light_side property: Come is light_side"""
+    odds = Odds(Come, 6, 10)
+    assert odds.light_side is True
+
+
+def test_odds_light_side_with_put():
+    """Odds.light_side property: Put is light_side"""
+    odds = Odds(Put, 6, 10)
+    assert odds.light_side is True
+
+
+def test_odds_dark_side_with_dontpass():
+    """Odds.dark_side property: DontPass is dark_side"""
+    odds = Odds(DontPass, 6, 10)
+    assert odds.dark_side is True
+
+
+def test_odds_dark_side_with_dontcome():
+    """Odds.dark_side property: DontCome is dark_side"""
+    odds = Odds(DontCome, 6, 10)
+    assert odds.dark_side is True
+
+
+def test_odds_light_side_false_for_dark_types():
+    """Odds.light_side is False for dark side bet types"""
+    odds = Odds(DontPass, 6, 10)
+    assert odds.light_side is False
+    
+    odds = Odds(DontCome, 6, 10)
+    assert odds.light_side is False
+
+
+def test_odds_dark_side_false_for_light_types():
+    """Odds.dark_side is False for light side bet types"""
+    odds = Odds(PassLine, 6, 10)
+    assert odds.dark_side is False
+    
+    odds = Odds(Come, 6, 10)
+    assert odds.dark_side is False
+    
+    odds = Odds(Put, 6, 10)
+    assert odds.dark_side is False
+
+
 def test_odds_get_max_odds_invalid_base_type_raises_not_implemented():
     class InvalidBase:
         pass
@@ -548,6 +598,16 @@ def test_odds_get_payout_ratio_invalid_base_type_raises_not_implemented():
         bet.get_payout_ratio(table)
 
 
+def test_odds_str_invalid_base_type_raises_not_implemented():
+    class InvalidBase:
+        pass
+
+    bet = Odds(InvalidBase, 6, 1)
+
+    with pytest.raises(NotImplementedError):
+        str(bet)
+
+
 def test_hop_equality():
     hop_one = Hop((2, 3), 1)
     hop_two = Hop((2, 3), 1)
@@ -566,8 +626,10 @@ def test_hop_inequality():
     assert hop_one != hop_three
 
 
-# TODO: do some thinking on this. How can we support this for both classic and crapless?
 def test_buy_invalid_number_raises():
+    # Previously, Buy/Lay validation was tied to the ruleset gate instead of the constructor.
+    # This test now only covers numbers that are always invalid; ruleset-specific acceptance
+    # is covered by the CraplessRules/classic-mode tests below.
     with pytest.raises(ValueError):
         crapssim.bet.Buy(None, 10)
         crapssim.bet.Buy(1, 10)
@@ -575,6 +637,9 @@ def test_buy_invalid_number_raises():
 
 
 def test_lay_invalid_number_raises():
+    # Previously, Buy/Lay validation was tied to the ruleset gate instead of the constructor.
+    # This test now only covers numbers that are always invalid; ruleset-specific acceptance
+    # is covered by the CraplessRules/classic-mode tests below.
     with pytest.raises(ValueError):
         crapssim.bet.Lay(None, 10)
         crapssim.bet.Lay(1, 10)
@@ -612,6 +677,34 @@ def test_put_odds_allowed_when_point_on():
     player.add_bet(crapssim.bet.Put(6, 10))
     player.add_bet(crapssim.bet.Odds(crapssim.bet.Put, 6, 10, True))
     assert any(isinstance(b, crapssim.bet.Odds) for b in player.bets)
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_put_odds_allowed_on_extremes_in_crapless_mode(number):
+    table = Table(rules=CraplessRules())
+    player = table.add_player(bankroll=100)
+    table.point.number = 4
+
+    player.add_bet(Put(number, 10))
+    player.add_bet(Odds(Put, number, 10, True))
+
+    assert any(isinstance(b, Put) and b.number == number for b in player.bets)
+    assert any(
+        isinstance(b, Odds) and b.base_type is Put and b.number == number
+        for b in player.bets
+    )
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_put_odds_not_allowed_on_extremes_in_classic_mode(number):
+    table = Table(rules=ClassicRules())
+    player = table.add_player(bankroll=100)
+    table.point.number = 4
+
+    # Force a matching base bet to ensure rejection is due to rules, not missing base amount.
+    player.bets.append(Put(number, 10))
+
+    assert Odds(Put, number, 10, True).is_allowed(player) is False
 
 
 def test_put_only_allowed_when_point_on():
@@ -671,6 +764,85 @@ def test_dont_pass_bet_pushes_on_comeout_12():
     assert result.bankroll_change == dont_pass_bet.amount
 
 
+def test_dontpass_is_allowed_when_point_off():
+    """DontPass.is_allowed returns True when point is Off and rules allow"""
+    table = Table(rules=ClassicRules())
+    player = table.add_player(bankroll=100)
+    
+    # Point must be off for DontPass
+    assert table.point.status == "Off"
+    
+    bet = DontPass(10)
+    assert bet.is_allowed(player) is True
+
+
+def test_dontpass_is_not_allowed_when_point_on():
+    """DontPass.is_allowed returns False when point is On"""
+    table = Table(rules=ClassicRules())
+    player = table.add_player(bankroll=100)
+    
+    # Establish a point
+    table.point.number = 6
+    assert table.point.status == "On"
+    
+    bet = DontPass(10)
+    assert bet.is_allowed(player) is False
+
+
+def test_dontpass_get_winning_numbers_before_point():
+    """DontPass.get_winning_numbers: table.point.number is None"""
+    table = Table()
+    assert table.point.number is None
+    
+    bet = DontPass(10)
+    assert bet.get_winning_numbers(table) == [2, 3]
+
+
+def test_dontpass_get_winning_numbers_after_point():
+    """DontPass.get_winning_numbers: table.point.number is not None"""
+    table = Table()
+    table.point.number = 6
+    
+    bet = DontPass(10)
+    assert bet.get_winning_numbers(table) == [7]
+
+
+def test_dontpass_get_losing_numbers_before_point():
+    """DontPass.get_losing_numbers: table.point.number is None"""
+    table = Table()
+    assert table.point.number is None
+    
+    bet = DontPass(10)
+    assert bet.get_losing_numbers(table) == [7, 11]
+
+
+def test_dontpass_get_losing_numbers_after_point():
+    """DontPass.get_losing_numbers: table.point.number is not None"""
+    table = Table()
+    table.point.number = 6
+    
+    bet = DontPass(10)
+    assert bet.get_losing_numbers(table) == [6]
+
+
+def test_dontpass_get_push_numbers_before_point():
+    """DontPass.get_push_numbers: table.point.number is None"""
+    table = Table()
+    assert table.point.number is None
+    
+    bet = DontPass(10)
+    assert bet.get_push_numbers(table) == [12]
+
+
+def test_dontpass_get_push_numbers_after_point():
+    """DontPass.get_push_numbers: table.point.number is not None"""
+    table = Table()
+    table.point.number = 6
+    
+    bet = DontPass(10)
+    assert bet.get_push_numbers(table) == []
+
+
 def test_dont_come_bet_pushes_on_12():
     table = Table()
     table.add_player()
@@ -705,6 +877,76 @@ def test_dont_come_is_not_allowed_when_point_is_off():
 
     assert table.point.status != "On"
     assert DontCome(10).is_allowed(player) is False
+
+
+def test_dontcome_update_number_when_invalid_dice():
+    """DontCome.update_number line: dice.total not in possible_numbers"""
+    table = Table()
+    table.add_player(bankroll=100)
+    
+    from unittest.mock import Mock
+    table.dice = Mock()
+    table.dice.total = 2  # 2 is NOT in CLASSIC_POINTS
+    
+    bet = DontCome(10)  # number=None initially
+    bet.update_number(table)
+    assert bet.number is None  # Should remain None
+
+
+def test_dontcome_init_with_invalid_number():
+    """DontCome.__init__ line 547: number not in CLASSIC_POINTS"""
+    # Valid CLASSIC_POINTS: [4, 5, 6, 8, 9, 10]
+    # Invalid numbers should result in self.number = None
+    bet = DontCome(10, number=2)  # 2 is not in CLASSIC_POINTS
+    assert bet.number is None
+
+    bet = DontCome(10, number=11)  # 11 is not in CLASSIC_POINTS
+    assert bet.number is None
+
+    bet = DontCome(10, number=7)  # 7 is not in CLASSIC_POINTS
+    assert bet.number is None
+
+
+def test_dontcome_init_with_valid_number():
+    """DontCome.__init__ line 547: number in CLASSIC_POINTS"""
+    bet = DontCome(10, number=4)
+    assert bet.number == 4
+
+    bet = DontCome(10, number=10)
+    assert bet.number == 10
+
+
+def test_dontcome_get_winning_numbers_with_number():
+    """DontCome.get_winning_numbers line 553: self.number is not None"""
+    table = Table()
+    bet = DontCome(10, number=6)
+    assert bet.get_winning_numbers(table) == [7]
+
+
+def test_dontcome_get_losing_numbers_with_number():
+    """DontCome.get_losing_numbers line 558: self.number is not None"""
+    table = Table()
+    bet = DontCome(10, number=6)
+    assert bet.get_losing_numbers(table) == [6]
+
+
+def test_dontcome_get_push_numbers_with_number():
+    """DontCome.get_push_numbers line 563: self.number is not None"""
+    table = Table()
+    bet = DontCome(10, number=6)
+    assert bet.get_push_numbers(table) == []
+
+
+def test_dontcome_update_number_when_already_set():
+    """DontCome.update_number line 569: self.number is not None (no update)"""
+    table = Table()
+    from unittest.mock import Mock
+    table.dice = Mock()
+    table.dice.total = 8
+    
+    bet = DontCome(10, number=6)
+    bet.update_number(table)
+    assert bet.number == 6  # Should not change
 
 
 def test_dontpass_is_not_allowed_in_crapless_mode():
@@ -769,9 +1011,9 @@ def test_buy_allow_point_numbers_in_crapless_mode(number):
 
 def test_dont_pass_not_allowed_in_crapless_mode():
     table = Table(rules=CraplessRules())
-    table.add_player(bankroll=500)
-    player = table.players[0]
+    player = table.add_player(bankroll=500)
 
+    table.point.number = 2
     player.add_bet(DontPass(100))
 
     assert not player.has_bets(DontPass)
@@ -780,8 +1022,7 @@ def test_dont_pass_not_allowed_in_crapless_mode():
 
 def test_dont_come_not_allowed_in_crapless_mode():
     table = Table(rules=CraplessRules())
-    table.add_player(bankroll=500)
-    player = table.players[0]
+    player = table.add_player(bankroll=500)
 
     table.point.number = 4
     player.add_bet(DontCome(100))
@@ -793,8 +1034,7 @@ def test_dont_come_not_allowed_in_crapless_mode():
 @pytest.mark.parametrize("number", [2, 3, 11, 12])
 def test_come_with_crapless_number_not_allowed_on_classic_mode(number):
     table = Table(rules=ClassicRules())
-    table.add_player(bankroll=100)
-    player = table.players[0]
+    player = table.add_player(bankroll=100)
 
     # Come bets can only be placed with the table point ON.
     table.point.number = 4
@@ -808,8 +1048,7 @@ def test_come_with_crapless_number_not_allowed_on_classic_mode(number):
 @pytest.mark.parametrize("number", [2, 3, 11, 12])
 def test_come_with_crapless_number_allowed_on_crapless_mode(number):
     table = Table(rules=CraplessRules())
-    table.add_player(bankroll=100)
-    player = table.players[0]
+    player = table.add_player(bankroll=100)
 
     # Come bets can only be placed with the table point ON.
     table.point.number = 4
@@ -824,8 +1063,7 @@ def test_come_with_crapless_number_allowed_on_crapless_mode(number):
 @pytest.mark.parametrize("number", [2, 3, 11, 12])
 def test_put_rejects_crapless_only_numbers_in_classic_mode(number):
     table = Table(rules=ClassicRules())
-    table.add_player(bankroll=20)
-    player = table.players[0]
+    player = table.add_player(bankroll=20)
 
     table.point.number = 4
     player.add_bet(Put(number, 10))
@@ -837,8 +1075,7 @@ def test_put_rejects_crapless_only_numbers_in_classic_mode(number):
 @pytest.mark.parametrize("number", [2, 3, 11, 12])
 def test_put_allows_crapless_only_numbers_in_crapless_mode(number):
     table = Table(rules=CraplessRules())
-    table.add_player(bankroll=20)
-    player = table.players[0]
+    player = table.add_player(bankroll=20)
 
     table.point.number = 4
     player.add_bet(Put(number, 10))
@@ -850,8 +1087,7 @@ def test_put_allows_crapless_only_numbers_in_crapless_mode(number):
 @pytest.mark.parametrize("number", [2, 3, 11, 12])
 def test_lay_rejects_crapless_only_numbers_in_classic_mode(number):
     table = Table(rules=ClassicRules())
-    table.add_player(bankroll=20)
-    player = table.players[0]
+    player = table.add_player(bankroll=20)
 
     player.add_bet(Lay(number, 10))
 
@@ -862,8 +1098,7 @@ def test_lay_rejects_crapless_only_numbers_in_classic_mode(number):
 @pytest.mark.parametrize("number", [2, 3, 11, 12])
 def test_lay_allows_crapless_only_numbers_in_crapless_mode(number):
     table = Table(rules=CraplessRules())
-    table.add_player(bankroll=20)
-    player = table.players[0]
+    player = table.add_player(bankroll=20)
 
     player.add_bet(Lay(number, 10))
 

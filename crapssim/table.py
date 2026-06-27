@@ -198,7 +198,7 @@ class Table:
             "field_payouts": {2: 2, 3: 1, 4: 1, 9: 1, 10: 1, 11: 1, 12: 2},
             "fire_payouts": {4: 24, 5: 249, 6: 999},
             "hop_payouts": {"easy": 15, "hard": 30},
-            "max_odds": {4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3},
+            "max_odds": {2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1},
             "max_dont_odds": {4: 6, 5: 6, 6: 6, 8: 6, 9: 6, 10: 6},
             "vig_rounding": "nearest_dollar",
             "vig_floor": 0,

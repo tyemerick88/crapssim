@@ -47,7 +47,7 @@ class Rules(Protocol):
         ...
 
 
-class BaseRules(ABC):
+class AbstractRules(ABC):
     """Shared default behaviors for craps rule variants."""
 
     def point_numbers(self) -> list[int]:
@@ -84,7 +84,7 @@ class BaseRules(ABC):
         return True
 
 
-class ClassicRules(BaseRules):
+class ClassicRules(AbstractRules):
     """Traditional craps rules."""
 
     def point_numbers(self) -> list[int]:
@@ -97,7 +97,7 @@ class ClassicRules(BaseRules):
         return [2, 3, 12]
 
 
-class CraplessRules(BaseRules):
+class CraplessRules(AbstractRules):
     """Crapless craps rules.
 
     In this variant, 2, 3, 11 and 12 are treated as points rather than immediate losses

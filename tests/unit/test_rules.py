@@ -1,7 +1,7 @@
 import pytest
 
 from crapssim.point import Point
-from crapssim.rules import BaseRules, ClassicRules, CraplessRules
+from crapssim.rules import AbstractRules, ClassicRules, CraplessRules
 
 
 class DummyDice:
@@ -11,7 +11,7 @@ class DummyDice:
 
 @pytest.fixture
 def base_rules():
-    return BaseRules()
+    return AbstractRules()
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def test_base_point_numbers(base_rules):
 
 
 def test_base_valid_point_bet_numbers_delegates_to_point_numbers():
-    class CustomRules(BaseRules):
+    class CustomRules(AbstractRules):
         def point_numbers(self) -> list[int]:
             return [4, 6]
 

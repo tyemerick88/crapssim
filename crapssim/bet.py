@@ -361,7 +361,6 @@ class PassLine(_WinningLosingNumbersBet):
             return table.rules.come_out_losers()
         return table.rules.point_losers(table.point.number)
 
-    # TODO: pass line bets do not have push numbers?
     def get_push_numbers(self, table: Table) -> list[int]:
         if table.point.number is None:
             return table.rules.come_out_pushers()
@@ -426,7 +425,6 @@ class Come(_WinningLosingNumbersBet):
             return table.rules.come_out_losers()
         return [7]
 
-    # TODO: come bets do not have push numbers?
     def get_push_numbers(self, table: Table) -> list[int]:
         if self.number is None:
             return table.rules.come_out_pushers()
@@ -694,6 +692,9 @@ class Odds(_WinningLosingNumbersBet):
         Returns:
             True if the bet is allowed, otherwise false.
         """
+        if not _is_number_allowed_by_rules(self.number, player.table.rules):
+            return False
+
         max_bet = self.get_max_odds(player.table) * self.base_amount(player)
         allowed = self.amount <= max_bet
         return allowed
@@ -747,6 +748,8 @@ class Odds(_WinningLosingNumbersBet):
             return f"{super().__str__()}({self.base_type})"
         elif issubclass(self.base_type, (Come, Put, DontCome)):
             return f"{super().__str__()}({self.base_type}{number_str})"
+        else:
+            raise NotImplementedError
 
 
 class Put(_SimpleBet):
