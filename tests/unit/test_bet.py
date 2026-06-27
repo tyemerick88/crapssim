@@ -13,6 +13,8 @@ from crapssim.bet import (
     DontCome,
     Hop,
     Horn,
+    Lay,
+    Put,
     Odds,
     PassLine,
     DontPass,
@@ -424,14 +426,39 @@ def test_hop_inequality():
 # TODO: do some thinking on this. How can we support this for both classic and crapless?
 def test_buy_invalid_number_raises():
     with pytest.raises(ValueError):
-        # crapssim.bet.Buy(3, 10) # old test before crapless changes
         crapssim.bet.Buy(None, 10)
+        crapssim.bet.Buy(1, 10)
+        crapssim.bet.Buy(13, 10)
 
 
 def test_lay_invalid_number_raises():
     with pytest.raises(ValueError):
-        # crapssim.bet.Lay(11, 10) # old test before crapless changes
+        crapssim.bet.Lay(None, 10)
         crapssim.bet.Lay(1, 10)
+        crapssim.bet.Lay(13, 10)
+
+
+def test_put_invalid_number_raises():
+    with pytest.raises(ValueError):
+        crapssim.bet.Put(None, 10)
+        crapssim.bet.Put(1, 10)
+        crapssim.bet.Put(13, 10)
+
+
+def test_place_invalid_number_raises():
+    with pytest.raises(ValueError):
+        crapssim.bet.Place(None, 10)
+        crapssim.bet.Place(1, 10)
+        crapssim.bet.Place(13, 10)
+
+
+def test_vig_policy_invalid_rounding_defaults_to_nearest_dollar():
+    rounding, floor = crapssim.bet._vig_policy(
+        {"vig_rounding": "invalid", "vig_floor": 2.5}
+    )
+
+    assert rounding == "nearest_dollar"
+    assert floor == 2.5
 
 
 def test_put_odds_allowed_when_point_on():
@@ -515,99 +542,187 @@ def test_dont_come_bet_pushes_on_12():
     assert result.bankroll_change == dont_come_bet.amount
 
 
-def test_dontpass_and_dontcome_are_not_allowed_in_crapless_mode():
+def test_dont_come_with_number_losing_numbers_after_travel():
+    table = Table()
+    dont_come_bet = DontCome(10, 6)
+
+    assert dont_come_bet.get_losing_numbers(table) == [6]
+
+
+def test_dont_come_with_number_push_numbers_after_travel():
+    table = Table()
+    dont_come_bet = DontCome(10, 6)
+
+    assert dont_come_bet.get_push_numbers(table) == []
+
+
+def test_dont_come_is_not_allowed_when_point_is_off():
+    table = Table(rules=ClassicRules())
+    player = table.add_player(bankroll=100)
+
+    assert table.point.status != "On"
+    assert DontCome(10).is_allowed(player) is False
+
+
+def test_dontpass_is_not_allowed_in_crapless_mode():
+    table = Table(rules=CraplessRules())
+    player = table.add_player(bankroll=500)
+
+    player.add_bet(DontPass(100))
+    
+    assert not player.has_bets(DontPass)
+    assert player.bankroll == 500
+
+def test_dontcome_is_not_allowed_in_crapless_mode():
+    table = Table(rules=CraplessRules())
+    player = table.add_player(bankroll=500)
+
+    player.add_bet(DontCome(100))
+    
+    assert not player.has_bets(DontCome)
+    assert player.bankroll == 500
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_place_reject_crapless_only_numbers_in_classic_mode(number):
+    table = Table(rules=ClassicRules())
+    player = table.add_player(bankroll=100)
+
+    player.add_bet(crapssim.bet.Place(number, amount=10))
+    assert not player.has_bets((crapssim.bet.Place))
+    assert player.bankroll == 100
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_buy_reject_crapless_only_numbers_in_classic_mode(number):
+    table = Table(rules=ClassicRules())
+    player = table.add_player(bankroll=100)
+
+    player.add_bet(crapssim.bet.Buy(number, amount=10))
+    assert not player.has_bets((crapssim.bet.Buy))
+    assert player.bankroll == 100
+
+
+@pytest.mark.parametrize("number", [2, 3, 4, 5, 6, 8, 9, 10, 11, 12])
+def test_place_allow_all_point_numbers_in_crapless_mode(number):
+    table = Table(rules=CraplessRules())
+    player = table.add_player(bankroll=100)
+
+    player.add_bet(crapssim.bet.Place(number, amount=10))
+    assert player.has_bets((crapssim.bet.Place))
+    assert player.bankroll == 90
+
+
+@pytest.mark.parametrize("number", [2, 3, 4, 5, 6, 8, 9, 10, 11, 12])
+def test_buy_allow_point_numbers_in_crapless_mode(number):
+    table = Table(rules=CraplessRules())
+    table.settings["vig_paid_on_win"] = True
+    player = table.add_player(bankroll=100)
+
+    player.add_bet(crapssim.bet.Buy(number, amount=10))
+    assert player.has_bets((crapssim.bet.Buy))
+    assert player.bankroll == 90
+
+
+def test_dont_pass_not_allowed_in_crapless_mode():
     table = Table(rules=CraplessRules())
     table.add_player(bankroll=500)
     player = table.players[0]
 
     player.add_bet(DontPass(100))
-    table.point.number = 4
-    player.add_bet(DontCome(100))
-    
-    assert not player.has_bets((DontPass, DontCome))
+
+    assert not player.has_bets(DontPass)
     assert player.bankroll == 500
 
 
-# TODO: should we add tests for come bets here?
-# TODO: split test out for put, buy, lay and place bets for both ClassicRules and CraplessRules
-@pytest.mark.parametrize(
-    ["number", "bankroll"],
-    [
-        (2,  20),
-        (3,  20),
-        (11, 20),
-        (12, 20),
-    ],
-)
-def test_place_and_buy_reject_crapless_only_numbers_in_classic_mode(number, bankroll):
-    table = Table(rules=ClassicRules())
-    table.settings["vig_paid_on_win"] = True
-    table.add_player(bankroll=bankroll)
-    player = table.players[0]
-
-    bet = bankroll / 2
-    player.add_bet(crapssim.bet.Place(number, bet))
-    assert not player.has_bets((crapssim.bet.Place))
-    assert player.bankroll == bankroll
-
-    player.add_bet(crapssim.bet.Buy(number, bet))
-    assert not player.has_bets((crapssim.bet.Buy))
-    assert player.bankroll == bankroll
-
-
-@pytest.mark.parametrize(
-    ["number", "bankroll"],
-    [
-        (4,  20),
-        (5,  20),
-        (6,  20),
-        (8,  20),
-        (9,  20),
-        (10, 20),
-    ],
-)
-def test_place_and_buy_allow_point_numbers_in_classic_mode(number, bankroll):
-    table = Table(rules=ClassicRules())
-    table.settings["vig_paid_on_win"] = True
-    table.add_player(bankroll=bankroll)
-    player = table.players[0]
-
-    bet = bankroll / 2
-    player.add_bet(crapssim.bet.Place(number, bet))
-    assert player.has_bets((crapssim.bet.Place))
-    assert player.bankroll == bet
-
-    player.add_bet(crapssim.bet.Buy(number, bet))
-    assert player.has_bets((crapssim.bet.Buy))
-    assert player.bankroll == 0
-
-
-@pytest.mark.parametrize(
-    ["number", "bankroll"],
-    [
-        (2,  20),
-        (3,  20),
-        (4,  20),
-        (5,  20),
-        (6,  20),
-        (8,  20),
-        (9,  20),
-        (10, 20),
-        (11, 20),
-        (12, 20),
-    ],
-)
-def test_place_and_buy_allow_point_numbers_in_crapless_mode(number, bankroll):
+def test_dont_come_not_allowed_in_crapless_mode():
     table = Table(rules=CraplessRules())
-    table.settings["vig_paid_on_win"] = True
-    table.add_player(bankroll=bankroll)
+    table.add_player(bankroll=500)
     player = table.players[0]
 
-    bet = bankroll / 2
-    player.add_bet(crapssim.bet.Place(number, bet))
-    assert player.has_bets((crapssim.bet.Place))
-    assert player.bankroll == bet
+    table.point.number = 4
+    player.add_bet(DontCome(100))
 
-    player.add_bet(crapssim.bet.Buy(number, bet))
-    assert player.has_bets((crapssim.bet.Place))
-    assert player.bankroll == 0
+    assert not player.has_bets(DontCome)
+    assert player.bankroll == 500
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_come_with_crapless_number_not_allowed_on_classic_mode(number):
+    table = Table(rules=ClassicRules())
+    table.add_player(bankroll=100)
+    player = table.players[0]
+
+    # Come bets can only be placed with the table point ON.
+    table.point.number = 4
+
+    player.add_bet(Come(10, number=number))
+
+    assert not player.has_bets(Come)
+    assert player.bankroll == 100
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_come_with_crapless_number_allowed_on_crapless_mode(number):
+    table = Table(rules=CraplessRules())
+    table.add_player(bankroll=100)
+    player = table.players[0]
+
+    # Come bets can only be placed with the table point ON.
+    table.point.number = 4
+
+    player.add_bet(Come(10, number=number))
+
+    assert player.has_bets(Come)
+    assert player.bankroll == 90
+    assert any(isinstance(b, Come) and b.number == number for b in player.bets)
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_put_rejects_crapless_only_numbers_in_classic_mode(number):
+    table = Table(rules=ClassicRules())
+    table.add_player(bankroll=20)
+    player = table.players[0]
+
+    table.point.number = 4
+    player.add_bet(Put(number, 10))
+
+    assert not player.has_bets(Put)
+    assert player.bankroll == 20
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_put_allows_crapless_only_numbers_in_crapless_mode(number):
+    table = Table(rules=CraplessRules())
+    table.add_player(bankroll=20)
+    player = table.players[0]
+
+    table.point.number = 4
+    player.add_bet(Put(number, 10))
+
+    assert player.has_bets(Put)
+    assert player.bankroll == 10
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_lay_rejects_crapless_only_numbers_in_classic_mode(number):
+    table = Table(rules=ClassicRules())
+    table.add_player(bankroll=20)
+    player = table.players[0]
+
+    player.add_bet(Lay(number, 10))
+
+    assert not player.has_bets(Lay)
+    assert player.bankroll == 20
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_lay_allows_crapless_only_numbers_in_crapless_mode(number):
+    table = Table(rules=CraplessRules())
+    table.add_player(bankroll=20)
+    player = table.players[0]
+
+    player.add_bet(Lay(number, 10))
+
+    assert player.has_bets(Lay)
+    assert player.bankroll == 10

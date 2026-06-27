@@ -6,7 +6,7 @@ from typing import Hashable, Literal, Protocol, SupportsFloat, TypedDict, cast
 
 from crapssim.dice import Dice
 from crapssim.point import Point
-from crapssim.rules import CraplessRules, Rules
+from crapssim.rules import Rules
 
 __all__ = [
     "BetResult",
@@ -46,16 +46,9 @@ CLASSIC_POINTS = (4, 5, 6, 8, 9, 10)
 CRAPLESS_POINTS = (2, 3, 4, 5, 6, 8, 9, 10, 11, 12)
 
 
-def _is_number_allowed_by_rules(
-    number: int,
-    rules: Rules,
-    classic_numbers: tuple[int, ...] | list[int] = CLASSIC_POINTS,
-    crapless_numbers: tuple[int, ...] | list[int] = CRAPLESS_POINTS,
-) -> bool:
+def _is_number_allowed_by_rules(number: int, rules: Rules) -> bool:
     """Return whether a number is valid for the given rule set."""
-    if isinstance(rules, CraplessRules):
-        return number in crapless_numbers
-    return number in classic_numbers
+    return number in rules.valid_point_bet_numbers()
 
 
 class TableSettings(TypedDict, total=False):
@@ -408,7 +401,9 @@ class Come(_WinningLosingNumbersBet):
 
     def __init__(self, amount: SupportsFloat, number: int | None = None):
         super().__init__(amount)
-        possible_numbers = CRAPLESS_POINTS # TODO: should this have all crapless numbers?
+        # Allow construction of numbered Come bets for internal/game-state use.
+        # Table legality is enforced in is_allowed() based on the active ruleset.
+        possible_numbers = CRAPLESS_POINTS
         if number in possible_numbers:
             self.number = number
         else:
@@ -465,8 +460,10 @@ class Come(_WinningLosingNumbersBet):
         """
         return (
             player.table.point.status == "On"
-            # TODO: need to figure out a way to prevent come init to extremes on ClassicRules
-            # and _is_number_allowed_by_rules(self.number, player.table.rules)
+            and (
+                self.number is None
+                or _is_number_allowed_by_rules(self.number, player.table.rules)
+            ) 
         )
 
     def copy(self) -> "Bet":
@@ -530,7 +527,8 @@ class DontPass(_WinningLosingNumbersBet):
         """
         return (
             player.table.point.status == "Off"
-            and not isinstance(player.table.rules, CraplessRules)
+            and player.table.rules.allow_dont_pass()
+
         )
 
 
@@ -585,7 +583,7 @@ class DontCome(_WinningLosingNumbersBet):
         """
         return (
             player.table.point.status == "On"
-            and not isinstance(player.table.rules, CraplessRules)
+            and player.table.rules.allow_dont_come()
         )
 
     def copy(self) -> "Bet":
@@ -761,7 +759,7 @@ class Put(_SimpleBet):
 
     def is_allowed(self, player: "Player") -> bool:
         return (
-            player.table.point == "On"
+            player.table.point.status == "On"
             and _is_number_allowed_by_rules(self.number, player.table.rules)
         ) 
 
@@ -945,7 +943,7 @@ class Buy(_SimpleBet):
 
 
 class Lay(_SimpleBet):
-    """True-odds bet against 4/5/6/8/9/10, paying if 7 arrives first.
+    """True-odds bet against 2/3/4/5/6/8/9/10/11/12, paying if 7 arrives first.
 
     Commission may be taken on the win or upfront based on ``vig_paid_on_win``.
     Note that the vig is taken on the amount won, not the bet amount,

@@ -3,12 +3,12 @@ from crapssim import Dice
 
 class Point:
     """
-    The point on a craps table.
+    The point on a craps or crapless table.
 
     Attributes
     ----------
     number : int
-        The point number (in [4, 5, 6, 8, 9, 10]) is status == 'On'
+        The point number (in [2, 3, 4, 5, 6, 8, 9, 10, 11, 12]) is status == 'On'
     """
 
     def __init__(self, number: int | None = None) -> None:
@@ -31,6 +31,9 @@ class Point:
         if isinstance(other, str):
             return self.status.lower() == other.lower() or str(self.number) == other
         elif isinstance(other, int) and other in (2, 3, 4, 5, 6, 8, 9, 10, 11, 12):
+            # Point equality supports all crapless-capable point numbers so callers can compare
+            # against a point value regardless of active ruleset. Legality of those numbers is
+            # handled by the table rules, not by Point itself.
             return other == self.number
         elif isinstance(other, Point):
             return other.status == self.status and other.number == self.number

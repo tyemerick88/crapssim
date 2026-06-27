@@ -1,7 +1,7 @@
 import pytest
 
 from crapssim import Table
-from crapssim.bet import Come, DontCome, DontPass
+from crapssim.bet import Come, PassLine
 from crapssim.point import Point
 from crapssim.rules import ClassicRules, CraplessRules
 from crapssim.strategy import BetPassLine
@@ -39,25 +39,6 @@ def test_wrong_point_on():
     table.point.number = 4
     table.add_player(bankroll=500)
     assert (len(table.players[0].bets), table.players[0].bankroll) == (0, 500)
-
-
-@pytest.mark.parametrize(
-    ["status", "number", "comparison"],
-    [
-        ("On", 2, "2"),
-        ("On", 3, "3"),
-        ("On", 11, "11"),
-        ("On", 12, "12"),
-    ],
-)
-def test_point_equality_accepts_crapless_point_numbers(status, number, comparison):
-    point = Point()
-    point.number = number
-    assert point == number
-    assert point == comparison
-    assert point == status
-    assert point == str(status).lower()
-    assert point == str(status).upper()
 
 
 @pytest.mark.parametrize(
@@ -138,3 +119,60 @@ def test_table_rerunning_with_shooters():
 
     table.run(max_rolls=float("inf"), max_shooter=5)
     assert table.n_shooters == 7
+
+
+@pytest.mark.parametrize(
+    ["status", "number", "comparison"],
+    [
+        ("On", 2, "2"),
+        ("On", 3, "3"),
+        ("On", 11, "11"),
+        ("On", 12, "12"),
+    ],
+)
+def test_point_equality_accepts_crapless_point_numbers(status, number, comparison):
+    point = Point()
+    point.number = number
+    assert point == number
+    assert point == comparison
+    assert point == status
+    assert point == str(status).lower()
+    assert point == str(status).upper()
+
+
+@pytest.mark.parametrize(
+    "roll, expected_point",
+    [
+        ((1, 1), 2),
+        ((1, 2), 3),
+        ((5, 6), 11),
+        ((6, 6), 12),
+    ],
+)
+def test_crapless_comeout_extremes_establish_point(roll, expected_point):
+    table = Table(rules=CraplessRules())
+    table.fixed_run([roll], verbose=False)
+
+    assert table.point.status == "On"
+    assert table.point.number == expected_point
+
+
+def test_classic_comeout_2_does_not_establish_point():
+    table = Table(rules=ClassicRules())
+    table.fixed_run([(1, 1)], verbose=False)
+
+    assert table.point.status == "Off"
+    assert table.point.number is None
+
+
+def test_crapless_passline_comeout_2_becomes_point_not_loss():
+    table = Table(rules=CraplessRules())
+    table.add_player(bankroll=100)
+    player = table.players[0]
+
+    player.add_bet(PassLine(10))
+    table.fixed_run([(1, 1)], verbose=False)
+
+    assert table.point.status == "On"
+    assert table.point.number == 2
+    assert player.has_bets(PassLine)

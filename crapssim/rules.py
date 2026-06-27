@@ -13,6 +13,9 @@ class Rules(Protocol):
     def point_numbers(self) -> list[int]:
         ...
 
+    def valid_point_bet_numbers(self) -> list[int]:
+        ...
+
     def come_out_winners(self) -> list[int]:
         ...
 
@@ -37,12 +40,22 @@ class Rules(Protocol):
     def should_reset_shooter(self, point: Point, dice: Dice) -> bool:
         ...
 
+    def allow_dont_pass(self) -> bool:
+        ...
+
+    def allow_dont_come(self) -> bool:
+        ...
+
 
 class BaseRules(ABC):
     """Shared default behaviors for craps rule variants."""
 
     def point_numbers(self) -> list[int]:
         return []
+    
+    def valid_point_bet_numbers(self) -> list[int]:
+        """Numbers that are legal for place/buy/lay/put and numbered come-style bets."""
+        return self.point_numbers()
 
     def come_out_pushers(self) -> list[int]:
         return []
@@ -63,6 +76,12 @@ class BaseRules(ABC):
 
     def should_reset_shooter(self, point: Point, dice: Dice) -> bool:
         return point.status == "On" and dice.total == 7
+    
+    def allow_dont_pass(self) -> bool:
+        return True
+
+    def allow_dont_come(self) -> bool:
+        return True
 
 
 class ClassicRules(BaseRules):
@@ -93,3 +112,9 @@ class CraplessRules(BaseRules):
 
     def come_out_losers(self) -> list[int]:
         return []
+
+    def allow_dont_pass(self) -> bool:
+        return False
+
+    def allow_dont_come(self) -> bool:
+        return False

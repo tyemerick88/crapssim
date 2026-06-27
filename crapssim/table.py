@@ -151,6 +151,8 @@ class TableUpdate:
         Returns:
             None: Always returns ``None``.
         """
+        # First allow moving bets (e.g. Come / Don't Come) to capture the just-rolled number,
+        # then update the table point state for the next roll.
         for player, bet in table.yield_player_bets():
             bet.update_number(table)
         table.point.update(table.dice, table.rules.point_numbers())
