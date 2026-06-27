@@ -654,7 +654,9 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return [7]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(
+                f"Unsupported odds base type: {self.base_type}"
+            )
 
     def get_losing_numbers(self, table: Table) -> list[int]:
         if self.light_side:
@@ -662,7 +664,9 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return [self.number]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(
+                f"Unsupported odds base type: {self.base_type}"
+            )
 
     def get_payout_ratio(self, table: Table) -> float:
         light_ratios = {
@@ -684,7 +688,9 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return dark_ratios[self.number]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(
+                f"Unsupported odds base type: {self.base_type}"
+            )
 
     def is_allowed(self, player: Player) -> bool:
         """Odds are allowed if they do not exceed the table maximums.
@@ -705,7 +711,9 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return table.settings["max_dont_odds"][self.number]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(
+                f"Unsupported odds base type: {self.base_type}"
+            )
 
     def base_amount(self, player: Player):
         base_bets = [
@@ -749,7 +757,9 @@ class Odds(_WinningLosingNumbersBet):
         elif issubclass(self.base_type, (Come, Put, DontCome)):
             return f"{super().__str__()}({self.base_type}{number_str})"
         else:
-            raise NotImplementedError
+            raise NotImplementedError(
+                f"Unsupported odds base type: {self.base_type}"
+            )
 
 
 class Put(_SimpleBet):
