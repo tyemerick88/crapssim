@@ -12,6 +12,11 @@ def test_no_rolls(d1):
     assert d1.n_rolls == 0
 
 
+def test_result_and_total_are_none_before_first_roll(d1):
+    assert d1.result is None
+    assert d1.total is None
+
+
 def test_one_roll(d1):
     d1.roll()
     assert d1.n_rolls == 1

@@ -7,6 +7,7 @@ import crapssim.bet
 from crapssim.bet import (
     Any7,
     Bet,
+    BetResult,
     Boxcars,
     CAndE,
     Come,
@@ -28,6 +29,16 @@ from crapssim.strategy.tools import NullStrategy
 from crapssim.table import Table, TableUpdate
 
 # Check EV of bets on a "per-roll" basis
+
+
+class _BetForBaseCoverage(Bet):
+    def get_result(self, table: Table) -> BetResult:
+        return BetResult(0, False)
+
+
+class _BetCallsAbstractGetResult(Bet):
+    def get_result(self, table: Table):
+        return super().get_result(table)
 
 
 @pytest.mark.parametrize(
@@ -322,6 +333,70 @@ def test_cant_instantiate_bet_object():
         Bet(400)
 
 
+def test_bet_base_default_methods():
+    table = Table()
+    table.add_player()
+    player = table.players[0]
+    bet = _BetForBaseCoverage(10)
+
+    assert bet.cost(table) == 10
+    assert bet.is_removable(table) is True
+    assert bet.is_allowed(player) is True
+
+    original_amount = bet.amount
+    bet.update_number(table)
+    assert bet.amount == original_amount
+
+
+def test_bet_abstract_get_result_default_returns_none():
+    table = Table()
+    bet = _BetCallsAbstractGetResult(10)
+
+    assert bet.get_result(table) is None
+
+
+def test_winning_losing_numbers_bet_abstract_methods_default_returns_none():
+    class _CallsAbstractWinning(crapssim.bet._WinningLosingNumbersBet):
+        def get_winning_numbers(self, table: Table):
+            return super().get_winning_numbers(table)
+
+        def get_losing_numbers(self, table: Table):
+            return super().get_losing_numbers(table)
+
+        def get_payout_ratio(self, table: Table):
+            return super().get_payout_ratio(table)
+
+    table = Table()
+    bet = _CallsAbstractWinning(10)
+
+    assert bet.get_winning_numbers(table) is None
+    assert bet.get_losing_numbers(table) is None
+    assert bet.get_payout_ratio(table) is None
+
+
+def test_bet_eq_non_bet_raises_not_implemented():
+    bet = _BetForBaseCoverage(10)
+
+    with pytest.raises(NotImplementedError):
+        _ = (bet == 10)
+
+
+def test_bet_add_different_type_raises_not_implemented():
+    with pytest.raises(NotImplementedError):
+        _ = PassLine(10) + Come(10)
+
+
+def test_bet_subtract_base_branches():
+    bet = PassLine(10)
+
+    assert (bet - 3).amount == 7
+    assert (bet - PassLine(4)).amount == 6
+    assert (3 - bet).amount == 7
+
+    with pytest.raises(NotImplementedError):
+        _ = bet - Come(4)
+
+
 def test_get_cande_dice_2_payout_ratio():
     table = Table()
     table.dice.fixed_roll((1, 1))
@@ -344,6 +419,30 @@ def test_get_cande_dice_12_payout_ratio():
     table = Table()
     table.dice.fixed_roll((6, 6))
     assert CAndE(5).get_payout_ratio(table) == 3
+
+
+def test_get_cande_invalid_total_raises_not_implemented():
+    table = Table()
+    table.dice.result = (0, 0)
+
+    with pytest.raises(NotImplementedError):
+        CAndE(5).get_payout_ratio(table)
+
+
+def test_get_horn_invalid_total_raises_not_implemented():
+    table = Table()
+    table.dice.result = (4, 4)
+
+    with pytest.raises(NotImplementedError):
+        Horn(5).get_payout_ratio(table)
+
+
+def test_get_world_invalid_total_raises_not_implemented():
+    table = Table()
+    table.dice.result = (4, 4)
+
+    with pytest.raises(NotImplementedError):
+        World(5).get_payout_ratio(table)
 
 
 def test_passline_is_irremovable_table_point_off():
@@ -403,6 +502,50 @@ def test_come_odds_not_is_allowed():
     table.players[0].bets = [come_bet]
     bet = Odds(Come, 6, 9000)
     assert bet.is_allowed(table.players[0]) is False
+
+
+def test_odds_get_max_odds_invalid_base_type_raises_not_implemented():
+    class InvalidBase:
+        pass
+
+    table = Table()
+    bet = Odds(InvalidBase, 6, 1)
+
+    with pytest.raises(NotImplementedError):
+        bet.get_max_odds(table)
+
+
+def test_odds_get_winning_numbers_invalid_base_type_raises_not_implemented():
+    class InvalidBase:
+        pass
+
+    table = Table()
+    bet = Odds(InvalidBase, 6, 1)
+
+    with pytest.raises(NotImplementedError):
+        bet.get_winning_numbers(table)
+
+
+def test_odds_get_losing_numbers_invalid_base_type_raises_not_implemented():
+    class InvalidBase:
+        pass
+
+    table = Table()
+    bet = Odds(InvalidBase, 6, 1)
+
+    with pytest.raises(NotImplementedError):
+        bet.get_losing_numbers(table)
+
+
+def test_odds_get_payout_ratio_invalid_base_type_raises_not_implemented():
+    class InvalidBase:
+        pass
+
+    table = Table()
+    bet = Odds(InvalidBase, 6, 1)
+
+    with pytest.raises(NotImplementedError):
+        bet.get_payout_ratio(table)
 
 
 def test_hop_equality():

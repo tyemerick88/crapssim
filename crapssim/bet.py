@@ -655,12 +655,16 @@ class Odds(_WinningLosingNumbersBet):
             return [self.number]
         elif self.dark_side:
             return [7]
+        else:
+            raise NotImplementedError
 
     def get_losing_numbers(self, table: Table) -> list[int]:
         if self.light_side:
             return [7]
         elif self.dark_side:
             return [self.number]
+        else:
+            raise NotImplementedError
 
     def get_payout_ratio(self, table: Table) -> float:
         light_ratios = {
@@ -681,6 +685,8 @@ class Odds(_WinningLosingNumbersBet):
             return light_ratios[self.number]
         elif self.dark_side:
             return dark_ratios[self.number]
+        else:
+            raise NotImplementedError
 
     def is_allowed(self, player: Player) -> bool:
         """Odds are allowed if they do not exceed the table maximums.
