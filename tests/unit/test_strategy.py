@@ -1,3 +1,4 @@
+import enum
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -50,7 +51,13 @@ from crapssim.strategy.odds import (
     OddsMultiplier,
     WinMultiplier,
 )
-from crapssim.strategy.single_bet import StrategyMode, _BaseSingleBet
+from crapssim.strategy.single_bet import (
+    StrategyMode,
+    _BaseSingleBet,
+    BetHardWay,
+    BetHop,
+    BetPlace,
+)
 from crapssim.strategy.tools import RemoveByType, RemoveIfPointOff, ReplaceIfTrue
 
 
@@ -721,6 +728,31 @@ def test_base_single_bet_bet_point_on_when_point_off(player):
     player.remove_bet.assert_called_once_with(Place(4, 5))
 
 
+def test_single_bet_add_if_new_shooter_mode(player):
+    strategy = _BaseSingleBet(PassLine(5), StrategyMode.ADD_IF_NEW_SHOOTER)
+    player.add_bet = MagicMock()
+
+    player.table.new_shooter = False
+    strategy.update_bets(player)
+    player.add_bet.assert_not_called()
+
+    player.table.new_shooter = True
+    strategy.update_bets(player)
+    player.add_bet.assert_called_once_with(PassLine(5))
+
+
+def test_base_single_bet_invalid_mode_is_noop(player):
+    class InvalidStrategyMode(enum.Enum):
+        INVALID = enum.auto()
+
+    strategy = _BaseSingleBet(PassLine(5), InvalidStrategyMode.INVALID)
+    player.add_bet = MagicMock()
+    player.remove_bet = MagicMock()
+    strategy.update_bets(player)
+    player.add_bet.assert_not_called()
+    player.remove_bet.assert_not_called()
+
+
 def test_bet_place_remove_point_bet(player):
     strategy = BetPlace({5: 5})
     player.bets = [Place(5, 5)]
@@ -1123,6 +1155,16 @@ def test_risk_12_point_on_10_pre_point_winnings(player):
     player.table.point.number = 5
     strategy.point_on(player)
     player.add_bet.assert_has_calls([call(Place(6, 6)), call(Place(8, 6))])
+
+
+def test_bethardway_rejects_invalid_number():
+    with pytest.raises(NotImplementedError):
+        BetHardWay(5, bet_amount=5)
+
+
+def test_bethop_rejects_invalid_result():
+    with pytest.raises(NotImplementedError):
+        BetHop((1, 7), bet_amount=1)
 
 
 def test_dice_doctor_win_increase_progression(player):

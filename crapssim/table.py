@@ -180,6 +180,7 @@ class TableSettings(TypedDict, total=False):
     vig_rounding: Literal["none", "ceil_dollar", "nearest_dollar"]
     vig_floor: float
     vig_paid_on_win: bool
+    come_out_working_policy: Literal["legacy", "real_casino"]
 
 
 class Table:
@@ -207,6 +208,7 @@ class Table:
             "vig_rounding": "nearest_dollar",
             "vig_floor": 0,
             "vig_paid_on_win": False,
+            "come_out_working_policy": "legacy",
         }
         self.pass_rolls: int = 0
         self.last_roll: int | None = None

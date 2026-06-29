@@ -154,8 +154,12 @@ class BetSingleNumber(_BaseSingleBet):
         number: int,
         bet_amount: SupportsFloat,
         mode: StrategyMode = StrategyMode.ADD_IF_NOT_BET,
+        always_working: bool | None = None,
     ) -> None:
-        super().__init__(self.bet_type(number, bet_amount), mode=mode)
+        super().__init__(
+            self.bet_type(number, bet_amount, always_working=always_working),
+            mode=mode,
+        )
 
 
 class BetPlace(Strategy):
@@ -168,6 +172,7 @@ class BetPlace(Strategy):
         mode: StrategyMode = StrategyMode.BET_IF_POINT_ON,
         skip_point: bool = True,
         skip_come: bool = False,
+        always_working: bool | None = None,
     ):
         """Strategy for making multiple place bets.
 
@@ -188,6 +193,7 @@ class BetPlace(Strategy):
         self.mode = mode
         self.skip_point = skip_point
         self.skip_come = skip_come
+        self.always_working = always_working
 
     def completed(self, player: Player) -> bool:
         """The strategy is completed if the player can no longer make any of the place bets in the
@@ -228,7 +234,10 @@ class BetPlace(Strategy):
                 ]
                 if number in come_numbers:
                     continue
-            _BaseSingleBet(Place(number, amount), mode=self.mode).update_bets(player)
+            _BaseSingleBet(
+                Place(number, amount, always_working=self.always_working),
+                mode=self.mode,
+            ).update_bets(player)
 
     @staticmethod
     def remove_point_bet(player: Player) -> None:
