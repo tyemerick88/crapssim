@@ -17,15 +17,15 @@ class Point:
     @property
     def status(self) -> str:
         if self.number is None:
-            return 'Off'
+            return "Off"
         else:
-            return 'On'
+            return "On"
 
     def __hash__(self) -> int:
         return hash(self.number)
 
     def __repr__(self):
-        return f'Point(number={self.number})'
+        return f"Point(number={self.number})"
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
@@ -87,7 +87,7 @@ class Point:
         dice_object : Dice
             The Dice you want to update the point with
         point_numbers : list[int], optional
-            The point numbers to use for the update. 
+            The point numbers to use for the update.
             If None, defaults to [4, 5, 6, 8, 9, 10].
         """
         numbers = point_numbers or [4, 5, 6, 8, 9, 10]

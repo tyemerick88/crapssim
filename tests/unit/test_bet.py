@@ -3,6 +3,8 @@ import math
 import numpy as np
 import pytest
 
+from unittest.mock import Mock
+
 import crapssim.bet
 from crapssim.bet import (
     Any7,
@@ -377,7 +379,7 @@ def test_bet_eq_non_bet_raises_not_implemented():
     bet = _BetForBaseCoverage(10)
 
     with pytest.raises(NotImplementedError):
-        _ = (bet == 10)
+        _ = bet == 10
 
 
 def test_bet_add_different_type_raises_not_implemented():
@@ -537,7 +539,7 @@ def test_odds_light_side_false_for_dark_types():
     """Odds.light_side is False for dark side bet types"""
     odds = Odds(DontPass, 6, 10)
     assert odds.light_side is False
-    
+
     odds = Odds(DontCome, 6, 10)
     assert odds.light_side is False
 
@@ -546,10 +548,10 @@ def test_odds_dark_side_false_for_light_types():
     """Odds.dark_side is False for light side bet types"""
     odds = Odds(PassLine, 6, 10)
     assert odds.dark_side is False
-    
+
     odds = Odds(Come, 6, 10)
     assert odds.dark_side is False
-    
+
     odds = Odds(Put, 6, 10)
     assert odds.dark_side is False
 
@@ -768,10 +770,10 @@ def test_dontpass_is_allowed_when_point_off():
     """DontPass.is_allowed returns True when point is Off and rules allow"""
     table = Table(rules=ClassicRules())
     player = table.add_player(bankroll=100)
-    
+
     # Point must be off for DontPass
     assert table.point.status == "Off"
-    
+
     bet = DontPass(10)
     assert bet.is_allowed(player) is True
 
@@ -780,11 +782,11 @@ def test_dontpass_is_not_allowed_when_point_on():
     """DontPass.is_allowed returns False when point is On"""
     table = Table(rules=ClassicRules())
     player = table.add_player(bankroll=100)
-    
+
     # Establish a point
     table.point.number = 6
     assert table.point.status == "On"
-    
+
     bet = DontPass(10)
     assert bet.is_allowed(player) is False
 
@@ -793,7 +795,7 @@ def test_dontpass_get_winning_numbers_before_point():
     """DontPass.get_winning_numbers: table.point.number is None"""
     table = Table()
     assert table.point.number is None
-    
+
     bet = DontPass(10)
     assert bet.get_winning_numbers(table) == [2, 3]
 
@@ -802,7 +804,7 @@ def test_dontpass_get_winning_numbers_after_point():
     """DontPass.get_winning_numbers: table.point.number is not None"""
     table = Table()
     table.point.number = 6
-    
+
     bet = DontPass(10)
     assert bet.get_winning_numbers(table) == [7]
 
@@ -811,7 +813,7 @@ def test_dontpass_get_losing_numbers_before_point():
     """DontPass.get_losing_numbers: table.point.number is None"""
     table = Table()
     assert table.point.number is None
-    
+
     bet = DontPass(10)
     assert bet.get_losing_numbers(table) == [7, 11]
 
@@ -820,7 +822,7 @@ def test_dontpass_get_losing_numbers_after_point():
     """DontPass.get_losing_numbers: table.point.number is not None"""
     table = Table()
     table.point.number = 6
-    
+
     bet = DontPass(10)
     assert bet.get_losing_numbers(table) == [6]
 
@@ -829,7 +831,7 @@ def test_dontpass_get_push_numbers_before_point():
     """DontPass.get_push_numbers: table.point.number is None"""
     table = Table()
     assert table.point.number is None
-    
+
     bet = DontPass(10)
     assert bet.get_push_numbers(table) == [12]
 
@@ -838,7 +840,7 @@ def test_dontpass_get_push_numbers_after_point():
     """DontPass.get_push_numbers: table.point.number is not None"""
     table = Table()
     table.point.number = 6
-    
+
     bet = DontPass(10)
     assert bet.get_push_numbers(table) == []
 
@@ -883,11 +885,10 @@ def test_dontcome_update_number_when_invalid_dice():
     """DontCome.update_number line: dice.total not in possible_numbers"""
     table = Table()
     table.add_player(bankroll=100)
-    
-    from unittest.mock import Mock
+
     table.dice = Mock()
     table.dice.total = 2  # 2 is NOT in CLASSIC_POINTS
-    
+
     bet = DontCome(10)  # number=None initially
     bet.update_number(table)
     assert bet.number is None  # Should remain None
@@ -940,10 +941,10 @@ def test_dontcome_get_push_numbers_with_number():
 def test_dontcome_update_number_when_already_set():
     """DontCome.update_number line 569: self.number is not None (no update)"""
     table = Table()
-    from unittest.mock import Mock
+
     table.dice = Mock()
     table.dice.total = 8
-    
+
     bet = DontCome(10, number=6)
     bet.update_number(table)
     assert bet.number == 6  # Should not change
@@ -954,16 +955,17 @@ def test_dontpass_is_not_allowed_in_crapless_mode():
     player = table.add_player(bankroll=500)
 
     player.add_bet(DontPass(100))
-    
+
     assert not player.has_bets(DontPass)
     assert player.bankroll == 500
+
 
 def test_dontcome_is_not_allowed_in_crapless_mode():
     table = Table(rules=CraplessRules())
     player = table.add_player(bankroll=500)
 
     player.add_bet(DontCome(100))
-    
+
     assert not player.has_bets(DontCome)
     assert player.bankroll == 500
 

@@ -179,14 +179,12 @@ def test_point_le_raises_when_self_is_off():
         _ = Point() <= 5
 
 
-
 def test_update_sets_point_when_off_and_roll_is_default_point_number():
     point = Point()
     point.update(DiceStub(4))
 
     assert point.number == 4
     assert point.status == "On"
-
 
 
 def test_update_does_not_set_point_when_off_and_roll_is_not_default_point_number():
@@ -197,14 +195,12 @@ def test_update_does_not_set_point_when_off_and_roll_is_not_default_point_number
     assert point.status == "Off"
 
 
-
 def test_update_clears_point_when_on_and_roll_matches_point():
     point = Point(number=6)
     point.update(DiceStub(6))
 
     assert point.number is None
     assert point.status == "Off"
-
 
 
 def test_update_clears_point_when_on_and_roll_is_seven():
@@ -215,14 +211,12 @@ def test_update_clears_point_when_on_and_roll_is_seven():
     assert point.status == "Off"
 
 
-
 def test_update_leaves_point_when_on_and_roll_is_neither_point_nor_seven():
     point = Point(number=6)
     point.update(DiceStub(8))
 
     assert point.number == 6
     assert point.status == "On"
-
 
 
 def test_update_supports_custom_point_numbers_for_crapless_like_tables():
@@ -233,14 +227,12 @@ def test_update_supports_custom_point_numbers_for_crapless_like_tables():
     assert point.status == "On"
 
 
-
 def test_update_with_empty_custom_point_numbers_falls_back_to_default_point_numbers():
     point = Point()
     point.update(DiceStub(4), point_numbers=[])
 
     assert point.number == 4
     assert point.status == "On"
-
 
 
 def test_update_multiple_rolls_sequence_transitions_between_on_and_off():

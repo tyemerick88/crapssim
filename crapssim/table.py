@@ -3,7 +3,7 @@ from typing import Generator, Iterable, Literal, SupportsFloat, TypedDict
 
 from crapssim.dice import Dice, DicePair
 
-from .bet import Bet, BetResult, Odds, Put
+from .bet import Bet, BetResult
 from .point import Point
 from .rules import ClassicRules, Rules
 from .strategy import BetPassLine, Strategy
@@ -153,7 +153,7 @@ class TableUpdate:
         """
         # First allow moving bets (e.g. Come / Don't Come) to capture the just-rolled number,
         # then update the table point state for the next roll.
-        for player, bet in table.yield_player_bets():
+        for _, bet in table.yield_player_bets():
             bet.update_number(table)
         table.point.update(table.dice, table.rules.point_numbers())
 
@@ -185,9 +185,7 @@ class TableSettings(TypedDict, total=False):
 class Table:
     """Runtime state for a craps table simulation."""
 
-    def __init__(
-        self, seed: int | None = None, rules: Rules | None = None
-    ) -> None:
+    def __init__(self, seed: int | None = None, rules: Rules | None = None) -> None:
         """Initialize table state, defaults, random dice source, and ruleset.
 
         Args:

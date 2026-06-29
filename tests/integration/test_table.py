@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -84,6 +84,6 @@ def test_table_total_player_cash():
 
     player0_final_br = table.players[0].total_player_cash
     player1_final_br = table.players[1].total_player_cash
-  
+
     assert table.total_player_cash == 188.0
     assert table.total_player_cash == player0_final_br + player1_final_br

@@ -32,6 +32,7 @@ def test_existing_bet():
 
     assert (bet_count, bet_amount, bankroll, total_bet_amount) == (1, 100, 0, 100)
 
+
 def test_valid_bet_removal():
     table = Table()
     player = table.add_player(500)
@@ -44,6 +45,7 @@ def test_valid_bet_removal():
     total_bet_amount = player.total_bet_amount
 
     assert (bet_count, bankroll, total_bet_amount) == (0, 500, 0)
+
 
 def test_invalid_bet_removal():
     table = Table()

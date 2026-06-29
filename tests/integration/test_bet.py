@@ -28,7 +28,6 @@ from crapssim.point import Point
 from crapssim.strategy.odds import ComeOddsMultiplier
 from crapssim.strategy.single_bet import BetCome, BetPassLine
 from crapssim.strategy.tools import NullStrategy
-from crapssim.table import TableUpdate
 
 ALL_BETS = [
     PassLine(5),
@@ -247,7 +246,16 @@ def test_bet_is_removable_new_shooter(bet, new_shooter, is_removable):
 
 @pytest.mark.parametrize(
     "dice1, dice2, correct_ratio",
-    [(1, 1, 2), (1, 2, 1), (2, 2, 1), (5, 4, 1), (5, 5, 1), (6, 5, 1), (6, 6, 2), (3, 3, 0)],
+    [
+        (1, 1, 2),
+        (1, 2, 1),
+        (2, 2, 1),
+        (5, 4, 1),
+        (5, 5, 1),
+        (6, 5, 1),
+        (6, 6, 2),
+        (3, 3, 0),
+    ],
 )
 def test_get_field_default_table_payout_ratio(dice1, dice2, correct_ratio):
     table = Table()

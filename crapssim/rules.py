@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Protocol
 
 from .dice import Dice
@@ -167,11 +167,14 @@ class AbstractRules(ABC):
 
 
 class ClassicRules(AbstractRules):
-    """Traditional craps rules with six point numbers (4, 5, 6, 8, 9 and 10) and standard come-out outcomes."""
+    """Traditional craps rules.
+
+    Uses six point numbers (4, 5, 6, 8, 9, and 10) and standard come-out outcomes.
+    """
 
     def point_numbers(self) -> list[int]:
         """Return standard point numbers used in classic craps.
-        
+
         Returns:
             list[int]: Valid point numbers: 4, 5, 6, 8, 9, and 10."""
         return [4, 5, 6, 8, 9, 10]
@@ -186,7 +189,7 @@ class ClassicRules(AbstractRules):
 
     def come_out_losers(self) -> list[int]:
         """Return classic pass-line losers on the come-out roll.
-        
+
         Returns:
             list[int]: 2, 3, and 12, the classic come-out losers.
         """
@@ -210,7 +213,7 @@ class CraplessRules(AbstractRules):
 
     def come_out_winners(self) -> list[int]:
         """Return come-out winners for Crapless rules.
-        
+
         Returns:
             list[int]: 7, the only come-out winner in Crapless craps."""
         return [7]

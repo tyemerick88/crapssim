@@ -441,7 +441,7 @@ class Come(_WinningLosingNumbersBet):
         return 1.0
 
     def update_number(self, table: Table):
-        """Update the bet's number to the first number rolled 
+        """Update the bet's number to the first number rolled
         if it's in the valid point numbers for the active ruleset.
         """
         possible_numbers = table.rules.point_numbers()
@@ -457,19 +457,16 @@ class Come(_WinningLosingNumbersBet):
         return self.number is None
 
     def is_allowed(self, player: Player) -> bool:
-        """Return whether this Come bet is legal and can be placed 
+        """Return whether this Come bet is legal and can be placed
         for the current table state.
 
         Returns:
             bool: True when the table point is on and the optional numbered Come
             target is valid for the active ruleset.
         """
-        return (
-            player.table.point.status == "On"
-            and (
-                self.number is None
-                or _is_number_allowed_by_rules(self.number, player.table.rules)
-            )
+        return player.table.point.status == "On" and (
+            self.number is None
+            or _is_number_allowed_by_rules(self.number, player.table.rules)
         )
 
     def copy(self) -> "Bet":
@@ -526,15 +523,14 @@ class DontPass(_WinningLosingNumbersBet):
         return 1.0
 
     def is_allowed(self, player: Player) -> bool:
-        """Return whether this Don't Pass bet is legal and can be placed 
+        """Return whether this Don't Pass bet is legal and can be placed
         for the current table state.
 
         Returns:
             bool: True if the point is off and the table rules allow Don't Pass.
         """
         return (
-            player.table.point.status == "Off"
-            and player.table.rules.allow_dont_pass()
+            player.table.point.status == "Off" and player.table.rules.allow_dont_pass()
         )
 
 
@@ -582,15 +578,14 @@ class DontCome(_WinningLosingNumbersBet):
             self.number = table.dice.total
 
     def is_allowed(self, player: Player) -> bool:
-        """Return whether this Don't Come bet is legal and can be placed 
+        """Return whether this Don't Come bet is legal and can be placed
         for the current table state.
 
         Returns:
             bool: True if the point is on and the table rules allow Don't Come.
         """
         return (
-            player.table.point.status == "On"
-            and player.table.rules.allow_dont_come()
+            player.table.point.status == "On" and player.table.rules.allow_dont_come()
         )
 
     def copy(self) -> "Bet":
@@ -663,9 +658,7 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return [7]
         else:
-            raise NotImplementedError(
-                f"Unsupported odds base type: {self.base_type}"
-            )
+            raise NotImplementedError(f"Unsupported odds base type: {self.base_type}")
 
     def get_losing_numbers(self, table: Table) -> list[int]:
         if self.light_side:
@@ -673,9 +666,7 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return [self.number]
         else:
-            raise NotImplementedError(
-                f"Unsupported odds base type: {self.base_type}"
-            )
+            raise NotImplementedError(f"Unsupported odds base type: {self.base_type}")
 
     def get_payout_ratio(self, table: Table) -> float:
         light_ratios = {
@@ -697,16 +688,14 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return dark_ratios[self.number]
         else:
-            raise NotImplementedError(
-                f"Unsupported odds base type: {self.base_type}"
-            )
+            raise NotImplementedError(f"Unsupported odds base type: {self.base_type}")
 
     def is_allowed(self, player: Player) -> bool:
-        """Return whether the odds amount is legal and 
+        """Return whether the odds amount is legal and
         can be placed for the current table state.
 
         Returns:
-            bool: True if bet number is valid for the active ruleset, 
+            bool: True if bet number is valid for the active ruleset,
             and amount is within max odds.
         """
         if not _is_number_allowed_by_rules(self.number, player.table.rules):
@@ -722,9 +711,7 @@ class Odds(_WinningLosingNumbersBet):
         elif self.dark_side:
             return table.settings["max_dont_odds"][self.number]
         else:
-            raise NotImplementedError(
-                f"Unsupported odds base type: {self.base_type}"
-            )
+            raise NotImplementedError(f"Unsupported odds base type: {self.base_type}")
 
     def base_amount(self, player: Player):
         base_bets = [
@@ -768,9 +755,7 @@ class Odds(_WinningLosingNumbersBet):
         elif issubclass(self.base_type, (Come, Put, DontCome)):
             return f"{super().__str__()}({self.base_type}{number_str})"
         else:
-            raise NotImplementedError(
-                f"Unsupported odds base type: {self.base_type}"
-            )
+            raise NotImplementedError(f"Unsupported odds base type: {self.base_type}")
 
 
 class Put(_SimpleBet):
@@ -788,16 +773,15 @@ class Put(_SimpleBet):
         self.payout_ratio = 1.0
 
     def is_allowed(self, player: "Player") -> bool:
-        """Return whether this Put bet number is legal and can be placed 
+        """Return whether this Put bet number is legal and can be placed
         for the current table state.
 
         Returns:
-            bool: True when the point is on and this bet number is valid 
+            bool: True when the point is on and this bet number is valid
             for the active ruleset.
         """
-        return (
-            player.table.point.status == "On"
-            and _is_number_allowed_by_rules(self.number, player.table.rules)
+        return player.table.point.status == "On" and _is_number_allowed_by_rules(
+            self.number, player.table.rules
         )
 
     def copy(self) -> "Put":
@@ -854,7 +838,7 @@ class Place(_SimpleBet):
         self.winning_numbers = [number]
 
     def is_allowed(self, player: "Player") -> bool:
-        """Return whether this Place bet number is legal and can be placed 
+        """Return whether this Place bet number is legal and can be placed
         for the current table state.
 
         Returns:
@@ -966,7 +950,7 @@ class Buy(_SimpleBet):
         return BetResult(result_amount, remove, self.amount)
 
     def is_allowed(self, player: "Player") -> bool:
-        """Return whether this Buy bet number is legal and can be placed for 
+        """Return whether this Buy bet number is legal and can be placed for
         the current table state.
 
         Returns:
@@ -1045,9 +1029,9 @@ class Lay(_SimpleBet):
             result_amount = 0
             remove = False
         return BetResult(result_amount, remove, self.amount)
-    
+
     def is_allowed(self, player: "Player") -> bool:
-        """Return whether this Lay bet number is legal and can be placed for 
+        """Return whether this Lay bet number is legal and can be placed for
         the current table state.
 
         Returns:
