@@ -9,7 +9,7 @@ def test_default_strategy():
     assert table.players[0].strategy == BetPassLine(5)
 
 
-def test_is_removable_bet():
+def test_irremovable_bet():
     bet = PassLine(50)
     table = Table()
     table.add_player(500)
