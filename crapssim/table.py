@@ -188,6 +188,12 @@ class Table:
     def __init__(
         self, seed: int | None = None, rules: Rules | None = None
     ) -> None:
+        """Initialize table state, defaults, random dice source, and ruleset.
+
+        Args:
+            seed: Optional random seed passed to Dice for reproducible runs.
+            rules: Optional rules implementation; defaults to ClassicRules.
+        """
         self.players: list[Player] = []
         self.point: Point = Point()
         self.seed = seed

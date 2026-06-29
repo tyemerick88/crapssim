@@ -86,6 +86,9 @@ class Point:
         ----------
         dice_object : Dice
             The Dice you want to update the point with
+        point_numbers : list[int], optional
+            The point numbers to use for the update. 
+            If None, defaults to [4, 5, 6, 8, 9, 10].
         """
         numbers = point_numbers or [4, 5, 6, 8, 9, 10]
         if self.status == "Off" and dice_object.total in numbers:

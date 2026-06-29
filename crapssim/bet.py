@@ -177,7 +177,7 @@ class Bet(ABC, metaclass=_MetaBetABC):
         table conditions (e.g. if point is On).
 
         Returns:
-            True if the bet is removable, otherwise false.
+            bool: True if the bet is removable, otherwise false.
         """
         return True
 
@@ -187,7 +187,7 @@ class Bet(ABC, metaclass=_MetaBetABC):
         May depend on the player's bets also (e.g. for odds bets).
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if the bet is allowed, otherwise false.
         """
         return True
 
@@ -282,21 +282,21 @@ class _WinningLosingNumbersBet(Bet, ABC):
 
     @abstractmethod
     def get_winning_numbers(self, table: Table) -> list[int]:
-        """Returns the winnings numbers, based on table features"""
+        """Returns the winnings numbers, based on table features and ruleset."""
         pass
 
     @abstractmethod
     def get_losing_numbers(self, table: Table) -> list[int]:
-        """Returns the losing numbers, based on table features"""
+        """Returns the losing numbers, based on table features and ruleset."""
         pass
 
     def get_push_numbers(self, table: Table) -> list[int]:
-        """Returns the push numbers, based on table features"""
+        """Returns the push numbers, based on table features and ruleset."""
         return []
 
     @abstractmethod
     def get_payout_ratio(self, table: Table) -> float:
-        """Returns the payout ratio (X to 1), based on table features"""
+        """Returns the payout ratio (X to 1), based on table features."""
         pass
 
 
@@ -335,8 +335,8 @@ class PassLine(_WinningLosingNumbersBet):
     """
     Pass Line bet in craps.
 
-    A bet where the player wins if the first roll is 7 or 11,
-    loses if the first roll is 2, 3, or 12, and establishes a point number
+    A bet where the player wins if the first roll is a come-out winner for the active ruleset,
+    loses if the first roll is a come-out loser for the active ruleset, and establishes a point number
     for subsequent rolls. Once a point is set, the player wins by rolling
     the point number again before rolling a 7. Pays 1 to 1.
     """
@@ -345,8 +345,9 @@ class PassLine(_WinningLosingNumbersBet):
         """Winning numbers are come-out winners before a point is set,
         and the current point number after it is established.
         Uses table to determine the point number and status.
-        For regular craps, come-out winners are 7, 11
-        For crapless craps, the only come-out winner is 7
+
+        For regular craps, come-out winners are 7, 11.
+        For crapless craps, the only come-out winner is 7.
         """
         if table.point.number is None:
             return table.rules.come_out_winners()
@@ -356,11 +357,15 @@ class PassLine(_WinningLosingNumbersBet):
         """Losing numbers are come-out losers before a point is set,
         and the table's point loser numbers after it is established.
         Uses table to determine the point number and status.
+
+        For regular craps, come-out losers are 2, 3, 12.
+        For crapless craps, there are no come-out losers.
         """
         if table.point.number is None:
             return table.rules.come_out_losers()
         return table.rules.point_losers(table.point.number)
 
+    # Implemented for future rulesets that may have PassLine pushers.
     def get_push_numbers(self, table: Table) -> list[int]:
         if table.point.number is None:
             return table.rules.come_out_pushers()
@@ -374,7 +379,7 @@ class PassLine(_WinningLosingNumbersBet):
         """PassLine is removable if the point is off
 
         Returns:
-            True if the bet is removable, otherwise false.
+            bool: True if the bet is removable, otherwise false.
         """
         return table.point.status == "Off"
 
@@ -382,7 +387,7 @@ class PassLine(_WinningLosingNumbersBet):
         """PassLine is allowed if the point if off
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if the bet is allowed, otherwise false.
         """
         return player.table.point.status == "Off"
 
@@ -392,8 +397,8 @@ class Come(_WinningLosingNumbersBet):
     Come bet in craps.
 
     Similar to the Pass Line bet, but can be placed after a point is established.
-    The first roll determines the Come bet's point number, but also wins on 7, 11
-    and loses on 2, 3, 12. The bet wins in subsequent rolls if the
+    The first roll determines the Come bet's point number, but also wins on come-out winners
+    and loses on come-out losers. The bet wins in subsequent rolls if the
     point number is rolled before a 7, and loses if a 7 is rolled before
     the point number. Pays 1 to 1.
     """
@@ -425,6 +430,7 @@ class Come(_WinningLosingNumbersBet):
             return table.rules.come_out_losers()
         return [7]
 
+    # Implemented for future rulesets that may have Come pushers.
     def get_push_numbers(self, table: Table) -> list[int]:
         if self.number is None:
             return table.rules.come_out_pushers()
@@ -435,8 +441,8 @@ class Come(_WinningLosingNumbersBet):
         return 1.0
 
     def update_number(self, table: Table):
-        """
-        Update the bet's number to the first number rolled if it's in table.rules.point_numbers()
+        """Update the bet's number to the first number rolled 
+        if it's in the valid point numbers for the active ruleset.
         """
         possible_numbers = table.rules.point_numbers()
         if self.number is None and table.dice.total in possible_numbers:
@@ -446,22 +452,24 @@ class Come(_WinningLosingNumbersBet):
         """Come bet is removable is it's number has not been established yet (first roll).
 
         Returns:
-            True if the bet is removable, otherwise false.
+            bool: True if the bet is removable, otherwise false.
         """
         return self.number is None
 
     def is_allowed(self, player: Player) -> bool:
-        """Come bet is only allowed if the table's point is on (accessed via player).
+        """Return whether this Come bet is legal and can be placed 
+        for the current table state.
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True when the table point is on and the optional numbered Come
+            target is valid for the active ruleset.
         """
         return (
             player.table.point.status == "On"
             and (
                 self.number is None
                 or _is_number_allowed_by_rules(self.number, player.table.rules)
-            ) 
+            )
         )
 
     def copy(self) -> "Bet":
@@ -518,15 +526,15 @@ class DontPass(_WinningLosingNumbersBet):
         return 1.0
 
     def is_allowed(self, player: Player) -> bool:
-        """Don't Pass is allowed if the point is off and crapless rules are not in effect.
+        """Return whether this Don't Pass bet is legal and can be placed 
+        for the current table state.
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if the point is off and the table rules allow Don't Pass.
         """
         return (
             player.table.point.status == "Off"
             and player.table.rules.allow_dont_pass()
-
         )
 
 
@@ -574,10 +582,11 @@ class DontCome(_WinningLosingNumbersBet):
             self.number = table.dice.total
 
     def is_allowed(self, player: Player) -> bool:
-        """Don't Come is only allowed if the table's point is on and crapless rules are not in effect.
+        """Return whether this Don't Come bet is legal and can be placed 
+        for the current table state.
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if the point is on and the table rules allow Don't Come.
         """
         return (
             player.table.point.status == "On"
@@ -606,11 +615,11 @@ class DontCome(_WinningLosingNumbersBet):
 
 class Odds(_WinningLosingNumbersBet):
     """
-    Odds bet (for PassLine, DontPass, Come, or Dontcome) in craps.
+    Odds bet (for PassLine, DontPass, Come, DontCome or Put) in craps.
 
     A supplementary bet placed behind Pass Line, Don't Pass, Come, or Don't Come bets.
     Offers true odds payouts, meaning the house has no edge. The payout varies
-    depending on the point number and whether it's a "light side" (Pass/Come)
+    depending on the point number and whether it's a "light side" (Pass/Come/Put)
     or "dark side" (Don't Pass/Don't Come) bet.
     """
 
@@ -693,10 +702,12 @@ class Odds(_WinningLosingNumbersBet):
             )
 
     def is_allowed(self, player: Player) -> bool:
-        """Odds are allowed if they do not exceed the table maximums.
+        """Return whether the odds amount is legal and 
+        can be placed for the current table state.
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if bet number is valid for the active ruleset, 
+            and amount is within max odds.
         """
         if not _is_number_allowed_by_rules(self.number, player.table.rules):
             return False
@@ -777,10 +788,17 @@ class Put(_SimpleBet):
         self.payout_ratio = 1.0
 
     def is_allowed(self, player: "Player") -> bool:
+        """Return whether this Put bet number is legal and can be placed 
+        for the current table state.
+
+        Returns:
+            bool: True when the point is on and this bet number is valid 
+            for the active ruleset.
+        """
         return (
             player.table.point.status == "On"
             and _is_number_allowed_by_rules(self.number, player.table.rules)
-        ) 
+        )
 
     def copy(self) -> "Put":
         return self.__class__(self.number, self.amount)
@@ -801,12 +819,12 @@ class Put(_SimpleBet):
 
 class Place(_SimpleBet):
     """
-    Place bet (on 4, 5, 6, 8, 9, or 10) in craps.
-    Place bet (on 2, 3, 4, 5, 6, 8, 9, 10, 11, or 12) in crapless craps.
-
     A bet on a specific number being rolled before a 7.
     Each number has a different payout ratio reflecting its probability of being rolled.
     Remains active until the number or a 7 is rolled.
+
+    Place bet (on 4, 5, 6, 8, 9, or 10) in craps.
+    Place bet (on 2, 3, 4, 5, 6, 8, 9, 10, 11, or 12) in crapless craps.
     """
 
     payout_ratios = {
@@ -836,7 +854,12 @@ class Place(_SimpleBet):
         self.winning_numbers = [number]
 
     def is_allowed(self, player: "Player") -> bool:
-        """Place bets are allowed on the valid numbers for the current ruleset."""
+        """Return whether this Place bet number is legal and can be placed 
+        for the current table state.
+
+        Returns:
+            bool: True when this bet number is valid for the active ruleset.
+        """
         return _is_number_allowed_by_rules(self.number, player.table.rules)
 
     def copy(self) -> "Bet":
@@ -890,7 +913,7 @@ def _vig_policy(
 
 
 class Buy(_SimpleBet):
-    """True-odds bet on 4/5/6/8/9/10 that charges vig per table policy.
+    """True-odds bet on 2/3/4/5/6/8/9/10/11/12 that charges vig per table policy.
 
     Vig (commission) may be taken on the win or upfront based on ``vig_paid_on_win``.
     """
@@ -943,7 +966,12 @@ class Buy(_SimpleBet):
         return BetResult(result_amount, remove, self.amount)
 
     def is_allowed(self, player: "Player") -> bool:
-        """Buy bets are allowed on the valid numbers for the current ruleset."""
+        """Return whether this Buy bet number is legal and can be placed for 
+        the current table state.
+
+        Returns:
+            bool: True when this number is allowed by the active ruleset.
+        """
         return _is_number_allowed_by_rules(self.number, player.table.rules)
 
     def copy(self) -> "Buy":
@@ -1019,7 +1047,12 @@ class Lay(_SimpleBet):
         return BetResult(result_amount, remove, self.amount)
     
     def is_allowed(self, player: "Player") -> bool:
-        """Lay bets are allowed on the valid numbers for the current ruleset."""
+        """Return whether this Lay bet number is legal and can be placed for 
+        the current table state.
+
+        Returns:
+            bool: True when this number is allowed by the active ruleset.
+        """
         return _is_number_allowed_by_rules(self.number, player.table.rules)
 
     def copy(self) -> "Lay":
@@ -1459,7 +1492,7 @@ class Fire(Bet):
         """Fire bet is removable only if there is a new shooter.
 
         Returns:
-            True if the bet is removable, otherwise false.
+            bool: True if the bet is removable, otherwise false.
         """
         return table.new_shooter
 
@@ -1467,7 +1500,7 @@ class Fire(Bet):
         """Fire bet is allowed if there is a new shooter.
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if the bet is allowed, otherwise false.
         """
         return player.table.new_shooter
 
@@ -1508,7 +1541,7 @@ class _ATSBet(Bet):
         (or starting a round, with a new shooter).
 
         Returns:
-            True if the bet is removable, otherwise false.
+            bool: True if the bet is removable, otherwise false.
         """
         return table.last_roll == 7 or table.new_shooter
 
@@ -1517,7 +1550,7 @@ class _ATSBet(Bet):
         (or starting a round, with a new shooter).
 
         Returns:
-            True if the bet is allowed, otherwise false.
+            bool: True if the bet is allowed, otherwise false.
         """
         return player.table.last_roll == 7 or player.table.new_shooter
 
