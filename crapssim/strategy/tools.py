@@ -3,11 +3,13 @@ strategies with the intended usage. Each of the strategies included in this pack
 to be used as building blocks when creating strategies."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Callable, Protocol, SupportsFloat
 
-from crapssim.bet import Bet, HardWay, Hop, Place
+from crapssim.bet import Bet, HardWay, Hop, Place, TableSettings
 from crapssim.dice import Dice
 from crapssim.point import Point
+from crapssim.rules import Rules
 
 __all__ = [
     "Strategy",
@@ -34,6 +36,8 @@ class Table(Protocol):
     dice: Dice
     point: Point
     new_shooter: bool
+    settings: TableSettings
+    rules: Rules
 
 
 class Player(Protocol):
@@ -456,33 +460,37 @@ class RemoveIfPointOff(RemoveIfTrue):
         Args:
             bet: Bet instance describing which wagers to remove when the point is off.
         """
-        if not any([isinstance(bet, x) for x in [Place, HardWay, Hop]]):
-            key = (
-                lambda b, p: isinstance(b, type(self.bet))
-                and p.table.point.status == "Off"
-            )
-
+        self.bet = bet
+        key: Callable[[Bet, Player], bool]
         if isinstance(bet, Place):
+            number = bet.number
             key = (
                 lambda b, p: isinstance(b, Place)
-                and b.number == self.bet.number
+                and b.number == number
                 and p.table.point.status == "Off"
             )
-        if isinstance(bet, HardWay):
+        elif isinstance(bet, HardWay):
+            number = bet.number
             key = (
                 lambda b, p: isinstance(b, HardWay)
-                and b.number == self.bet.number
+                and b.number == number
                 and p.table.point.status == "Off"
             )
-        if isinstance(bet, Hop):
+        elif isinstance(bet, Hop):
+            result = bet.result
             key = (
                 lambda b, p: isinstance(b, Hop)
-                and b.result == self.bet.result
+                and b.result == result
+                and p.table.point.status == "Off"
+            )
+        else:
+            bet_type = type(bet)
+            key = (
+                lambda b, p: isinstance(b, bet_type)
                 and p.table.point.status == "Off"
             )
 
         super().__init__(key)
-        self.bet = bet
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(bet={self.bet})"
@@ -500,7 +508,7 @@ class WinProgression(Strategy):
     """Strategy that every time a bet is won, moves to the next amount in the progression and
     places a Field bet for that amount."""
 
-    def __init__(self, first_bet: Bet, multipliers: list[SupportsFloat]) -> None:
+    def __init__(self, first_bet: Bet, multipliers: Sequence[SupportsFloat]) -> None:
         """Configure the baseline bet and multiplier progression.
 
         Args:
@@ -532,10 +540,10 @@ class WinProgression(Strategy):
         """Ensure a bet exists scaled by the current progression step."""
         new_bet = self.bet.copy()
         if self.current_progression >= len(self.multipliers):
-            new_bet.amount = self.bet.amount * self.multipliers[-1]
+            new_bet.amount = self.bet.amount * float(self.multipliers[-1])
         else:
-            new_bet.amount = (
-                self.bet.amount * self.multipliers[self.current_progression]
+            new_bet.amount = self.bet.amount * float(
+                self.multipliers[self.current_progression]
             )
         AddIfNotBet(new_bet).update_bets(player)
 

@@ -119,9 +119,10 @@ class PlaceInside(AggregateStrategy):
             or a number that supports float. If its a number that supports float, the six and eight
             amounts will be the number * (6 / 5) to make the payout a whole number.
         """
+        self.bet_amount: float | dict[int, float]
         if isinstance(bet_amount, SupportsFloat):
             self.bet_amount = float(bet_amount)
-            six_eight_amount = bet_amount * (6 / 5)
+            six_eight_amount = self.bet_amount * (6 / 5)
             amount_dict = {
                 5: self.bet_amount,
                 6: six_eight_amount,
@@ -850,7 +851,7 @@ class ThreePointMolly(AggregateStrategy):
     ):
 
         self.bet_amount: float = float(bet_amount)
-        self.odds_multiplier: float = (
+        self.odds_multiplier: float | None = (
             float(odds_multiplier) if odds_multiplier is not None else None
         )
 
@@ -904,7 +905,7 @@ class ThreePointDolly(AggregateStrategy):
     ):
 
         self.bet_amount: float = float(bet_amount)
-        self.win_multiplier: float = (
+        self.win_multiplier: float | None = (
             float(win_multiplier) if win_multiplier is not None else None
         )
 
