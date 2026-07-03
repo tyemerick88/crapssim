@@ -171,3 +171,5 @@ reports/
 **/reports/
 # End reports ignore
 
+# Sandbox files for local testing (do not commit)
+sandbox/

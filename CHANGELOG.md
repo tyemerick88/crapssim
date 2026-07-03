@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added 
+
+* Support for Crapless craps via new `rules` module, with corresponding updates across table and bet from [@tyemerick88] in [#86]
+* Expanded the test suite with new unit and integration tests to improve coverage from [@tyemerick88] in [#86]
+
+
 ## [0.4.0] - 2025-11-18
 
 This version hits the milestone to have all major craps bets implemented. 
@@ -109,6 +115,7 @@ Initial version
 [@amortization]: https://github.com/amortization
 [@JotaGreen]: https://github.com/JotaGreen
 [@nova-rey]: https://github.com/nova-rey
+[@tyemerick88]: https://github.com/tyemerick88
 
 [#3]: https://github.com/skent259/crapssim/pull/3
 [#9]: https://github.com/skent259/crapssim/pull/9
@@ -145,6 +152,7 @@ Initial version
 [#81]: https://github.com/skent259/crapssim/pull/71
 [#82]: https://github.com/skent259/crapssim/pull/71
 [#83]: https://github.com/skent259/crapssim/pull/71
+[#86]: https://github.com/skent259/crapssim/pull/86
 
 [#48]: https://github.com/skent259/crapssim/issues/48
 [#53]: https://github.com/skent259/crapssim/issues/53
