@@ -76,11 +76,12 @@ Development installation instructions are [also available](./docs/installation.m
 
 ## Results
 
-Some results from this simulator have been posted to http://pages.stat.wisc.edu/~kent/blog:
-- [One Surprising Feature of Dark Side Betting](https://pages.stat.wisc.edu/~kent/blog/2021.10.24/dark-side-surprises.html)
-- [5 Systems to Try at the Craps Table](http://pages.stat.wisc.edu/~kent/blog/2021.02.22/five_craps_systems.html)
-- [Craps: Best Strategies on a Budget](http://pages.stat.wisc.edu/~kent/blog/2019.07.31_Craps_Budget/craps_best-strategies-on-a-budget.html)
-- [All Bets Are Off: Re-learning the Pass Line Bet in Craps](http://pages.stat.wisc.edu/~kent/blog/2019.02.28_Craps_Passline/passline-and-odds.html)
+This simulator supports all of the analysis at [crapsanalyst.com](https://crapsanalyst.com), including: 
+
+- [Comparing Two Strategy Titans: Three Point Molly vs Iron Cross](https://crapsanalyst.com/three-point-molly-vs-iron-cross/)
+- [Best Craps Strategies on a Budget](https://crapsanalyst.com/best-craps-strategies-on-a-budget/)
+- [One Surprising Feature of Dark Side Betting](https://crapsanalyst.com/one-surprising-feature-of-dark-side-betting/)
+- [6 Ways to Hedge Your Pass Line Bet—And Whether You Should](https://crapsanalyst.com/hedging-pass-line/)
 
 
 ## Contributing

@@ -46,11 +46,6 @@ CLASSIC_POINTS = (4, 5, 6, 8, 9, 10)
 CRAPLESS_POINTS = (2, 3, 4, 5, 6, 8, 9, 10, 11, 12)
 
 
-def _is_number_allowed_by_rules(number: int, rules: Rules) -> bool:
-    """Return whether a number is valid for the given rule set."""
-    return number in rules.valid_point_bet_numbers()
-
-
 def _come_out_working_policy(
     settings: TableSettings,
 ) -> Literal["legacy", "real_casino"]:
@@ -402,12 +397,6 @@ class PassLine(_WinningLosingNumbersBet):
             return table.rules.come_out_losers()
         return table.rules.point_losers(table.point.number)
 
-    # Implemented for future rulesets that may have PassLine pushers.
-    def get_push_numbers(self, table: Table) -> list[int]:
-        if table.point.number is None:
-            return table.rules.come_out_pushers()
-        return table.rules.point_pushers(table.point.number)
-
     def get_payout_ratio(self, table: Table) -> float:
         """PassLine always pays out 1:1"""
         return 1.0
@@ -467,12 +456,6 @@ class Come(_WinningLosingNumbersBet):
             return table.rules.come_out_losers()
         return [7]
 
-    # Implemented for future rulesets that may have Come pushers.
-    def get_push_numbers(self, table: Table) -> list[int]:
-        if self.number is None:
-            return table.rules.come_out_pushers()
-        return table.rules.point_pushers(self.number)
-
     def get_payout_ratio(self, table: Table) -> float:
         """Come always pays out 1:1"""
         return 1.0
@@ -502,8 +485,7 @@ class Come(_WinningLosingNumbersBet):
             target is valid for the active ruleset.
         """
         return player.table.point.status == "On" and (
-            self.number is None
-            or _is_number_allowed_by_rules(self.number, player.table.rules)
+            self.number is None or self.number in player.table.rules.point_numbers()
         )
 
     def copy(self) -> "Bet":
@@ -732,7 +714,7 @@ class Odds(_WinningLosingNumbersBet):
             bool: True if bet number is valid for the active ruleset,
             and amount is within max odds.
         """
-        if not _is_number_allowed_by_rules(self.number, player.table.rules):
+        if not self.number in player.table.rules.point_numbers():
             return False
 
         max_bet = self.get_max_odds(player.table) * self.base_amount(player)
@@ -820,8 +802,9 @@ class Put(_SimpleBet):
             bool: True when the point is on and this bet number is valid
             for the active ruleset.
         """
-        return player.table.point.status == "On" and _is_number_allowed_by_rules(
-            self.number, player.table.rules
+        return (
+            player.table.point.status == "On"
+            and self.number in player.table.rules.point_numbers()
         )
 
     def copy(self) -> "Put":
@@ -909,7 +892,7 @@ class Place(_SimpleBet):
         Returns:
             bool: True when this bet number is valid for the active ruleset.
         """
-        return _is_number_allowed_by_rules(self.number, player.table.rules)
+        return self.number in player.table.rules.point_numbers()
 
     def copy(self) -> "Bet":
         """Create a fresh copy of this bet"""
@@ -1068,7 +1051,7 @@ class Buy(_SimpleBet):
         Returns:
             bool: True when this number is allowed by the active ruleset.
         """
-        return _is_number_allowed_by_rules(self.number, player.table.rules)
+        return self.number in player.table.rules.point_numbers()
 
     def copy(self) -> "Buy":
         new_bet = self.__class__(
@@ -1171,7 +1154,7 @@ class Lay(_SimpleBet):
         Returns:
             bool: True when this number is allowed by the active ruleset.
         """
-        return _is_number_allowed_by_rules(self.number, player.table.rules)
+        return self.number in player.table.rules.point_numbers()
 
     def copy(self) -> "Lay":
         new_bet = self.__class__(

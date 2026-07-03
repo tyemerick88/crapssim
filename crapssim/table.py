@@ -138,7 +138,7 @@ class TableUpdate:
 
     @staticmethod
     def set_new_shooter(table: "Table") -> None:
-        if table.rules.should_reset_shooter(table.point, table.dice):
+        if table.point.status == "On" and table.dice.total == 7:
             table.new_shooter = True
             table.n_shooters += 1
         else:

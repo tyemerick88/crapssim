@@ -558,6 +558,34 @@ def test_odds_dark_side_false_for_light_types():
     assert odds.dark_side is False
 
 
+def test_odds_light_side_noop_when_point_off_and_not_always_working():
+    table = Table()
+    table.point.number = None
+    table.dice.result = (3, 5)
+    bet = Odds(Come, 6, 10, always_working=False)
+
+    bet_result = bet.get_result(table)
+    assert bet_result.won is False
+    assert bet_result.lost is False
+    assert bet_result.pushed is False
+    assert bet_result.remove is False
+    assert bet_result.amount == 0
+
+
+def test_odds_dark_side_noop_when_point_off_and_not_always_working():
+    table = Table()
+    table.point.number = None
+    table.dice.result = (3, 5)
+    bet = Odds(DontCome, 6, 10, always_working=False)
+
+    bet_result = bet.get_result(table)
+    assert bet_result.won is False
+    assert bet_result.lost is False
+    assert bet_result.pushed is False
+    assert bet_result.remove is False
+    assert bet_result.amount == 0
+
+
 def test_odds_get_max_odds_invalid_base_type_raises_not_implemented():
     class InvalidBase:
         pass
