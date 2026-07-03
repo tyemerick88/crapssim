@@ -14,20 +14,12 @@ class Rules(Protocol):
         """Return all numbers that can become a table point."""
         ...
 
-    def valid_point_bet_numbers(self) -> list[int]:
-        """Return legal numbers for point-dependent bets such as Place and Put."""
-        ...
-
     def come_out_winners(self) -> list[int]:
         """Return come-out roll totals that win for pass/come-style bets."""
         ...
 
     def come_out_losers(self) -> list[int]:
         """Return come-out roll totals that lose for pass/come-style bets."""
-        ...
-
-    def come_out_pushers(self) -> list[int]:
-        """Return come-out roll totals that push for pass/come-style bets."""
         ...
 
     def point_winners(self, point: int | None) -> list[int]:
@@ -44,22 +36,6 @@ class Rules(Protocol):
         Args:
             point: Current point number, or None when point is off.
         """
-        ...
-
-    def point_pushers(self, point: int | None) -> list[int]:
-        """Return push totals while a point is established.
-
-        Args:
-            point: Current point number, or None when point is off.
-        """
-        ...
-
-    def should_set_point(self, point: Point, dice: Dice) -> bool:
-        """Return True when the current roll should establish a new point."""
-        ...
-
-    def should_reset_shooter(self, point: Point, dice: Dice) -> bool:
-        """Return True when the current roll should end the shooter turn."""
         ...
 
     def allow_dont_pass(self) -> bool:
@@ -79,22 +55,6 @@ class AbstractRules(ABC):
 
         Returns:
             list[int]: Empty list by default; subclasses define concrete values.
-        """
-        return []
-
-    def valid_point_bet_numbers(self) -> list[int]:
-        """Return legal numbers for point-dependent bets.
-
-        Returns:
-            list[int]: Defaults to the same values as point_numbers.
-        """
-        return self.point_numbers()
-
-    def come_out_pushers(self) -> list[int]:
-        """Return come-out totals that push.
-
-        Returns:
-            list[int]: Empty list for rulesets with no come-out push totals.
         """
         return []
 
@@ -121,41 +81,6 @@ class AbstractRules(ABC):
             list[int]: Seven, the default point-out total.
         """
         return [7]
-
-    def point_pushers(self, point: int | None) -> list[int]:
-        """Return point-phase totals that push.
-
-        Args:
-            point: Current point number, or None when point is off.
-
-        Returns:
-            list[int]: Empty list by default.
-        """
-        return []
-
-    def should_set_point(self, point: Point, dice: Dice) -> bool:
-        """Return True when an off point transitions to "on" for this roll.
-
-        Args:
-            point: Table point state before the roll is applied.
-            dice: Dice state for the current roll.
-
-        Returns:
-            bool: True when the point is off and dice total is a point number.
-        """
-        return point.status == "Off" and dice.total in self.point_numbers()
-
-    def should_reset_shooter(self, point: Point, dice: Dice) -> bool:
-        """Return True when the shooter should be reset for this roll.
-
-        Args:
-            point: Table point state before the roll is applied.
-            dice: Dice state for the current roll.
-
-        Returns:
-            bool: True when the point is on and a seven is rolled.
-        """
-        return point.status == "On" and dice.total == 7
 
     def allow_dont_pass(self) -> bool:
         """Return whether Dont Pass bets are legal in this ruleset."""
