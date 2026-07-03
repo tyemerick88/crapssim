@@ -31,6 +31,7 @@ from crapssim.strategy.tools import (
     AddIfTrue,
     AggregateStrategy,
     CountStrategy,
+    PlaceHitProgression,
     Player,
     RemoveByType,
     Strategy,
@@ -925,3 +926,53 @@ class ThreePointDolly(AggregateStrategy):
             f"{self.__class__.__name__}(amount={self.bet_amount}, "
             f"win_multiplier={self.win_multiplier})"
         )
+
+
+class SqueezePlay(PlaceHitProgression):
+    """Gets you from $66 inside to $64 across all paid within 3 rolls.
+
+    A place-betting progression (no pass line) that starts with $66 inside, adds
+    the 4 and 10 after the first hit, presses the inside numbers to $88 after the
+    second hit, and regresses everything to a flat $64 across after the third
+    hit. The intent is to recover the initial outlay quickly and then hold a
+    lower-risk board::
+
+        0 hits  Place $66 inside:  5@$15, 6@$18, 8@$18, 9@$15
+        1 hit   Add the 4 and 10:  ... plus 4@$10, 10@$10
+        2 hits  Press inside to $88: 5@$20, 6@$24, 8@$24, 9@$20 (4 & 10 stay $10)
+        3+ hits Regress to $64 across: 4@$10, 5@$10, 6@$12, 8@$12, 9@$10, 10@$10
+
+    Implemented as a :class:`~crapssim.strategy.tools.PlaceHitProgression`, so the
+    progression carries across made points and resets only on a seven-out. Because
+    the inside numbers include the point when it is 5, 6, 8, or 9, rolling the
+    point both pays the Place bet and makes the point; that hit still counts
+    toward the goal since a made point no longer resets the progression. While the
+    point is off (the come-out) the place bets are taken down so a come-out seven
+    can't sweep them, then rebuilt at the current stage once a new point is on.
+
+    Buy-in of $500 at a $10 table minimum comfortably covers the largest board.
+
+    Strategy Source: https://www.marconius.com/craps/#squeeze
+
+    See Also:
+        :class:`~crapssim.strategy.tools.PlaceHitProgression`
+    """
+
+    _INSIDE_INITIAL = {5: 15.0, 6: 18.0, 8: 18.0, 9: 15.0}  # $66 inside
+    _INSIDE_PRESSED = {5: 20.0, 6: 24.0, 8: 24.0, 9: 20.0}  # $88 inside
+    _OUTSIDE = {4: 10.0, 10: 10.0}
+    _ACROSS_FINAL = {4: 10.0, 5: 10.0, 6: 12.0, 8: 12.0, 9: 10.0, 10: 10.0}  # $64 across
+
+    def __init__(self) -> None:
+        """Build the fixed four-stage squeeze progression."""
+        super().__init__(
+            stages=[
+                self._INSIDE_INITIAL,  # 0 hits: $66 inside
+                {**self._INSIDE_INITIAL, **self._OUTSIDE},  # 1 hit: add 4 and 10
+                {**self._INSIDE_PRESSED, **self._OUTSIDE},  # 2 hits: press to $88
+                self._ACROSS_FINAL,  # 3+ hits: $64 across
+            ]
+        )
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"

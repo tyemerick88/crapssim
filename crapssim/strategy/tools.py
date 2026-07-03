@@ -24,6 +24,7 @@ __all__ = [
     "RemoveIfPointOff",
     "RemoveByType",
     "WinProgression",
+    "PlaceHitProgression",
 ]
 
 
@@ -540,3 +541,146 @@ class WinProgression(Strategy):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(first_bet={self.bet}, multipliers={self.multipliers})"
+
+
+class PlaceHitProgression(Strategy):
+    """Advance through a sequence of Place-bet boards as numbers hit.
+
+    You define a list of *stages* -- one set of place bets per number of hits
+    scored so far. Each stage is a ``{number: amount}`` dictionary describing the
+    Place bets that should be working while the strategy is at that hit count::
+
+        stages[0]   # board before any number has hit
+        stages[1]   # board after the 1st hit
+        ...
+        stages[-1]  # held once hit_count reaches len(stages) - 1
+
+    The strategy advances one stage each time one of the numbers it *owns* wins.
+    The owned numbers are the union of every number appearing across all stages;
+    the strategy only counts hits on, reconciles, and removes bets on those
+    numbers, leaving every other bet on the table untouched. This makes instances
+    composable: combine several with **disjoint** number sets in an
+    :class:`AggregateStrategy` and each progresses independently (for example a
+    Place-6 progression running alongside an unrelated Place-8 progression).
+
+    The progression carries across made points -- while the point is off (the
+    come-out) the owned Place bets are taken down so a come-out seven can't sweep
+    them, and they are rebuilt at the same stage once a new point is on. Only a
+    seven-out resets the progression back to ``stages[0]``.
+
+    Note:
+        Composed instances must use disjoint number sets. Two instances that both
+        own the same number would each try to reconcile it and would double-count
+        its hits.
+
+    See Also:
+        :class:`WinProgression`
+        :class:`~crapssim.strategy.examples.SqueezePlay`
+    """
+
+    def __init__(self, stages: list[dict[int, float]]) -> None:
+        """Configure the per-hit board sequence.
+
+        Args:
+            stages: A non-empty list of ``{number: amount}`` boards, indexed by
+                the number of hits scored so far. The last stage is held once the
+                hit count reaches or exceeds ``len(stages) - 1``.
+
+        Raises:
+            ValueError: If ``stages`` is empty.
+        """
+        if not stages:
+            raise ValueError("stages must contain at least one board configuration")
+        self.stages: list[dict[int, float]] = [dict(stage) for stage in stages]
+        self.numbers: frozenset[int] = frozenset(
+            number for stage in self.stages for number in stage
+        )
+        self.hit_count: int = 0
+        self._seven_out: bool = False
+
+    def _target(self) -> dict[int, float]:
+        """Return the board that should be working at the current hit count."""
+        index = min(self.hit_count, len(self.stages) - 1)
+        return self.stages[index]
+
+    def _owned_place_bets(self, player: Player) -> list[Place]:
+        """Return the player's Place bets on the numbers this strategy owns."""
+        return [
+            bet
+            for bet in player.bets
+            if isinstance(bet, Place) and bet.number in self.numbers
+        ]
+
+    def _clear_owned(self, player: Player) -> None:
+        """Remove all of this strategy's Place bets from the table."""
+        for bet in self._owned_place_bets(player):
+            player.remove_bet(bet)
+
+    def completed(self, player: Player) -> bool:
+        """Return whether the strategy can no longer continue.
+
+        Args:
+            player: The player whose bankroll and bets to check.
+
+        Returns:
+            True if the bankroll can't cover the smallest configured bet and no
+            bets remain on the table, otherwise False.
+        """
+        smallest_bet = min(
+            amount for stage in self.stages for amount in stage.values()
+        )
+        return player.bankroll < smallest_bet and len(player.bets) == 0
+
+    def after_roll(self, player: Player) -> None:
+        """Flag a seven-out or count a hit on an owned number.
+
+        A seven-out is the only event that resets the progression. Runs after the
+        roll but before the bets and point settle, so ``point.status`` still holds
+        its pre-roll value.
+
+        Args:
+            player: The player to check for winning bets.
+        """
+        table = player.table
+        if table.point.status == "On" and table.dice.total == 7:
+            self._seven_out = True
+            return
+        if table.point.status == "Off":
+            return
+        for bet in self._owned_place_bets(player):
+            if bet.get_result(table).won:
+                self.hit_count += 1
+                break  # at most one number wins per roll
+
+    def update_bets(self, player: Player) -> None:
+        """Reconcile the owned numbers to the board for the current hit count.
+
+        On a seven-out the board is cleared and the progression restarts. During
+        the come-out the owned bets are taken down but the progression is
+        preserved. Otherwise the owned bets are brought in line with the current
+        stage: a bet whose amount no longer matches the stage (a press or regress)
+        is removed and re-added, and any missing number is placed. A winning Place
+        bet is taken down by the table each roll, so this also re-adds it.
+
+        Args:
+            player: The player to update the bets for.
+        """
+        if self._seven_out:
+            self._clear_owned(player)
+            self.hit_count = 0
+            self._seven_out = False
+            return
+
+        if player.table.point.status == "Off":
+            self._clear_owned(player)
+            return
+
+        target = self._target()
+        for bet in self._owned_place_bets(player):
+            if target.get(bet.number) != bet.amount:
+                player.remove_bet(bet)
+        for number, amount in target.items():
+            AddIfNotBet(Place(number, amount)).update_bets(player)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(stages={self.stages})"
