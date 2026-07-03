@@ -916,8 +916,9 @@ class Place(_SimpleBet):
             return super().get_result(table)
 
         if table.dice.total == self.number:
-            # don't add the original bet amount back, since place bets are not returned on a win
-            result_amount = self.payout_ratio * self.amount
+            # BetResult.bankroll_change subtracts bet_amount for non-removing wins, so include
+            # principal here to yield only the place-bet profit while keeping the wager on layout.
+            result_amount = self.payout_ratio * self.amount + self.amount
             remove = False
         elif table.dice.total == 7:
             result_amount = -1 * self.amount

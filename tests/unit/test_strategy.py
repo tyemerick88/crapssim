@@ -10,11 +10,13 @@ from crapssim import Player, Table
 from crapssim.bet import (
     Bet,
     BetResult,
+    Buy,
     Come,
     DontCome,
     DontPass,
     Field,
     HardWay,
+    Lay,
     Odds,
     PassLine,
     Place,
@@ -56,7 +58,10 @@ from crapssim.strategy.single_bet import (
     _BaseSingleBet,
     BetHardWay,
     BetHop,
+    BetBuy,
+    BetLay,
     BetPlace,
+    BetPut,
 )
 from crapssim.strategy.tools import RemoveByType, RemoveIfPointOff, ReplaceIfTrue
 
@@ -791,6 +796,45 @@ def test_bet_place_add_bet_not_skip_point(player):
     player.table.point.number = 5
     strategy.update_bets(player)
     player.add_bet.assert_called_once_with(Place(5, 5))
+
+
+def test_bet_place_skip_come_ignores_untraveled_come_bets(player):
+    strategy = BetPlace({5: 10, 6: 12}, skip_point=False, skip_come=True)
+    player.table.point.number = 4
+    player.bets = [Come(10)]
+    player.add_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    assert player.add_bet.call_args_list == [call(Place(5, 10)), call(Place(6, 12))]
+
+
+def test_betbuy_preserves_always_working_argument(player):
+    strategy = BetBuy(6, 10, always_working=True)
+    player.add_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    player.add_bet.assert_called_once_with(Buy(6, 10, always_working=True))
+
+
+def test_betlay_preserves_always_working_argument(player):
+    strategy = BetLay(6, 10, always_working=True)
+    player.add_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    player.add_bet.assert_called_once_with(Lay(6, 10, always_working=True))
+
+
+def test_betput_preserves_always_working_argument(player):
+    strategy = BetPut(6, 10, always_working=True)
+    player.table.point.number = 4
+    player.add_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    player.add_bet.assert_called_once_with(Put(6, 10, always_working=True))
 
 
 def test_pass_2_come_point_off_passline(player):

@@ -742,6 +742,28 @@ def test_place_stays_inactive_on_comeout_in_real_casino_mode():
     assert result.remove is False
 
 
+@pytest.mark.parametrize(
+    "bet, roll",
+    [
+        (Place(6, 10, always_working=False), (3, 3)),
+        (Buy(6, 10, always_working=False), (3, 3)),
+        (Lay(6, 10, always_working=False), (3, 4)),
+        (Put(6, 10, always_working=False), (3, 3)),
+    ],
+)
+def test_explicit_false_overrides_legacy_comeout_behavior(bet, roll):
+    table = Table()
+    table.settings["come_out_working_policy"] = "legacy"
+
+    table.dice.fixed_roll(roll)
+
+    result = bet.get_result(table)
+
+    assert result.amount == 0
+    assert result.remove is False
+    assert result.bankroll_change == 0
+
+
 def test_place_always_working_overrides_real_casino_mode_win():
     table = Table()
     table.settings["come_out_working_policy"] = "real_casino"
@@ -783,6 +805,20 @@ def test_place_always_working_overrides_real_casino_mode_no_action():
     assert result.pushed is False
     assert result.amount == 0
     assert result.remove is False
+
+
+def test_place_non_removing_win_credits_profit_only_to_bankroll():
+    table = Table()
+    table.settings["come_out_working_policy"] = "real_casino"
+    bet = Place(6, 6, always_working=True)
+
+    table.dice.fixed_roll((3, 3))
+
+    result = bet.get_result(table)
+
+    assert result.amount == pytest.approx(13)
+    assert result.remove is False
+    assert result.bankroll_change == pytest.approx(7)
 
 
 def test_buy_stays_inactive_on_comeout_in_real_casino_mode():
@@ -886,6 +922,27 @@ def test_dontcome_odds_work_on_comeout_in_legacy_mode():
 
     assert result.won
     assert result.remove is True
+
+
+@pytest.mark.parametrize(
+    "bet_factory, roll",
+    [
+        (lambda: Place(6, 10), (3, 3)),
+        (lambda: Buy(6, 10), (3, 3)),
+        (lambda: Lay(6, 10), (3, 4)),
+        (lambda: Put(6, 10), (3, 3)),
+    ],
+)
+def test_invalid_comeout_policy_falls_back_to_legacy_for_number_bets(bet_factory, roll):
+    table = Table()
+    table.settings["come_out_working_policy"] = "invalid"
+    bet = bet_factory()
+
+    table.dice.fixed_roll(roll)
+
+    result = bet.get_result(table)
+
+    assert result.won is True
 
 
 @pytest.mark.parametrize(

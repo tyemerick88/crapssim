@@ -229,9 +229,7 @@ class BetPlace(Strategy):
             if self.skip_point and number == player.table.point.number:
                 continue
             if self.skip_come:
-                come_numbers = [
-                    x.point.number for x in player.bets if isinstance(x, Come)
-                ]
+                come_numbers = [x.number for x in player.bets if isinstance(x, Come)]
                 if number in come_numbers:
                     continue
             _BaseSingleBet(

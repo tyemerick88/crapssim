@@ -139,16 +139,11 @@ def test_betplace_always_working_passthrough_controls_comeout_resolution():
     )
     table_working.fixed_run([(3, 3)], verbose=False)
 
-    assert table_working.players[0].bankroll > 94.0
+    assert table_working.players[0].bankroll == pytest.approx(101)
     assert len(table_working.players[0].bets) == 1
 
 
 def test_betplace_skip_come_skips_matching_number_only():
-    class ComeWithPoint(Come):
-        def __init__(self, amount: float, point_number: int):
-            super().__init__(amount)
-            self.point = type("PointLike", (), {"number": point_number})()
-
     table = Table()
     strategy = BetPlace(
         {5: 10, 6: 12},
@@ -159,7 +154,7 @@ def test_betplace_skip_come_skips_matching_number_only():
     player = table.add_player(strategy=strategy)
 
     # Simulate an established Come bet on 5 so skip_come excludes only that number.
-    player.bets.append(ComeWithPoint(10, point_number=5))
+    player.bets.append(Come(10, number=5))
 
     TableUpdate().run_strategies(table)
 
