@@ -115,6 +115,23 @@ class AggregateStrategy(Strategy):
         """
         self.strategies = strategies
 
+    def after_roll(self, player: Player) -> None:
+        """Forward the after_roll hook to each strategy that has not completed.
+
+        Without this, substrategies that rely on :func:`Strategy.after_roll` (to
+        count winning bets, track winnings, detect a seven-out, etc.) would never
+        observe the roll when combined into an AggregateStrategy, since the base
+        :func:`Strategy.after_roll` is a no-op.
+
+        Parameters
+        ----------
+        player
+            The player to run each substrategy's after_roll for.
+        """
+        for strategy in self.strategies:
+            if not strategy.completed(player):
+                strategy.after_roll(player)
+
     def update_bets(self, player: Player) -> None:
         """Go through each of the strategies and run its update_bets method if the strategy has
         not been completed.

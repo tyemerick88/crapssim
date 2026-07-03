@@ -175,6 +175,28 @@ def test_aggregate_strategy_completed_calls_all_completed(aggregate_strategy, pl
     aggregate_strategy.strategies[1].completed.assert_called_once_with(player)
 
 
+def test_aggregate_strategy_calls_all_after_roll(aggregate_strategy, player):
+    aggregate_strategy.strategies[0].after_roll = MagicMock()
+    aggregate_strategy.strategies[1].after_roll = MagicMock()
+
+    aggregate_strategy.after_roll(player)
+
+    aggregate_strategy.strategies[0].after_roll.assert_called_once_with(player)
+    aggregate_strategy.strategies[1].after_roll.assert_called_once_with(player)
+
+
+def test_aggregate_strategy_after_roll_skips_completed(aggregate_strategy, player):
+    aggregate_strategy.strategies[0].completed = lambda p: True
+    aggregate_strategy.strategies[1].completed = lambda p: False
+    aggregate_strategy.strategies[0].after_roll = MagicMock()
+    aggregate_strategy.strategies[1].after_roll = MagicMock()
+
+    aggregate_strategy.after_roll(player)
+
+    aggregate_strategy.strategies[0].after_roll.assert_not_called()
+    aggregate_strategy.strategies[1].after_roll.assert_called_once_with(player)
+
+
 def test_aggregate_repr(aggregate_strategy):
     assert repr(aggregate_strategy) == "TestStrategy1() + TestStrategy2()"
 
