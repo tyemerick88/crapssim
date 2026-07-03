@@ -1,3 +1,6 @@
+# Personal strategy sandbox (not part of the package)
+sandbox/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
