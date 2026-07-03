@@ -1,6 +1,6 @@
-__all__ = ["table", "dice", "strategy", "bet", "Table", "Player"]
+__all__ = ["table", "dice", "strategy", "bet", "rules", "Table", "Player"]
 
 from crapssim.dice import Dice
 from crapssim.table import Player, Table
 
-from . import bet, strategy
+from . import bet, strategy, rules

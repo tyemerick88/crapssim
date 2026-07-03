@@ -3,8 +3,9 @@ from typing import Generator, Iterable, Literal, SupportsFloat, TypedDict
 
 from crapssim.dice import Dice, DicePair
 
-from .bet import Bet, BetResult, Odds, Put
+from .bet import Bet, BetResult
 from .point import Point
+from .rules import ClassicRules, Rules
 from .strategy import BetPassLine, Strategy
 
 __all__ = ["TableUpdate", "TableSettings", "Table", "Player"]
@@ -137,7 +138,7 @@ class TableUpdate:
 
     @staticmethod
     def set_new_shooter(table: "Table") -> None:
-        if table.point == "On" and table.dice.total == 7:
+        if table.point.status == "On" and table.dice.total == 7:
             table.new_shooter = True
             table.n_shooters += 1
         else:
@@ -150,9 +151,11 @@ class TableUpdate:
         Returns:
             None: Always returns ``None``.
         """
-        for player, bet in table.yield_player_bets():
+        # First allow moving bets (e.g. Come / Don't Come) to capture the just-rolled number,
+        # then update the table point state for the next roll.
+        for _, bet in table.yield_player_bets():
             bet.update_number(table)
-        table.point.update(table.dice)
+        table.point.update(table.dice, table.rules.point_numbers())
 
         if verbose:
             print(f"Point is {table.point.status} ({table.point.number})")
@@ -182,17 +185,24 @@ class TableSettings(TypedDict, total=False):
 class Table:
     """Runtime state for a craps table simulation."""
 
-    def __init__(self, seed: int | None = None) -> None:
+    def __init__(self, seed: int | None = None, rules: Rules | None = None) -> None:
+        """Initialize table state, defaults, random dice source, and ruleset.
+
+        Args:
+            seed: Optional random seed passed to Dice for reproducible runs.
+            rules: Optional rules implementation; defaults to ClassicRules.
+        """
         self.players: list[Player] = []
         self.point: Point = Point()
         self.seed = seed
         self.dice: Dice = Dice(self.seed)
+        self.rules: Rules = rules if rules is not None else ClassicRules()
         self.settings: TableSettings = {
             "ATS_payouts": {"all": 150, "tall": 30, "small": 30},
             "field_payouts": {2: 2, 3: 1, 4: 1, 9: 1, 10: 1, 11: 1, 12: 2},
             "fire_payouts": {4: 24, 5: 249, 6: 999},
             "hop_payouts": {"easy": 15, "hard": 30},
-            "max_odds": {4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3},
+            "max_odds": {2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1},
             "max_dont_odds": {4: 6, 5: 6, 6: 6, 8: 6, 9: 6, 10: 6},
             "vig_rounding": "nearest_dollar",
             "vig_floor": 0,
