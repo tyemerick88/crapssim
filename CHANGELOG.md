@@ -160,7 +160,7 @@ Initial version
 [#82]: https://github.com/skent259/crapssim/pull/71
 [#83]: https://github.com/skent259/crapssim/pull/71
 [#86]: https://github.com/skent259/crapssim/pull/86
-[#86]: https://github.com/skent259/crapssim/pull/87
+[#87]: https://github.com/skent259/crapssim/pull/87
 
 [#48]: https://github.com/skent259/crapssim/issues/48
 [#53]: https://github.com/skent259/crapssim/issues/53
