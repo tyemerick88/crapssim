@@ -1,4 +1,5 @@
 import math
+import copy
 
 import numpy as np
 import pytest
@@ -945,6 +946,128 @@ def test_invalid_comeout_policy_falls_back_to_legacy_for_number_bets(bet_factory
     assert result.won is False
     assert result.remove is False
     assert result.amount == 0
+
+
+@pytest.mark.parametrize(
+    "bet_factory, roll",
+    [
+        (lambda aw: Place(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Buy(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Lay(6, 10, always_working=aw), (3, 4)),
+        (lambda aw: Put(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Odds(Put, 6, 10, always_working=aw), (3, 3)),
+    ],
+)
+def test_explicit_true_overrides_real_casino_comeout_behavior(bet_factory, roll):
+    table = Table()
+    table.settings["come_out_working_policy"] = "real_casino"
+    bet = bet_factory(True)
+
+    table.dice.fixed_roll(roll)
+    result = bet.get_result(table)
+
+    assert result.won is True
+
+
+@pytest.mark.parametrize(
+    "bet_factory, roll",
+    [
+        (lambda aw: Place(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Buy(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Lay(6, 10, always_working=aw), (3, 4)),
+        (lambda aw: Put(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Odds(Put, 6, 10, always_working=aw), (3, 3)),
+    ],
+)
+def test_explicit_false_overrides_legacy_comeout_behavior_across_number_bets(
+    bet_factory, roll
+):
+    table = Table()
+    table.settings["come_out_working_policy"] = "legacy"
+    bet = bet_factory(False)
+
+    table.dice.fixed_roll(roll)
+    result = bet.get_result(table)
+
+    assert result.won is False
+    assert result.lost is False
+
+
+@pytest.mark.parametrize(
+    "bet_factory, roll",
+    [
+        (lambda aw: Place(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Buy(6, 10, always_working=aw), (3, 3)),
+        (lambda aw: Lay(6, 10, always_working=aw), (3, 4)),
+        (lambda aw: Put(6, 10, always_working=aw), (3, 3)),
+    ],
+)
+@pytest.mark.parametrize(
+    "policy, expected_working",
+    [("legacy", True), ("real_casino", False)],
+)
+def test_always_working_none_defers_to_table_policy_for_number_bets(
+    bet_factory, roll, policy, expected_working
+):
+    table = Table()
+    table.settings["come_out_working_policy"] = policy
+    bet = bet_factory(None)
+
+    table.dice.fixed_roll(roll)
+    result = bet.get_result(table)
+
+    if expected_working:
+        assert result.won is True
+    else:
+        assert result.won is False
+        assert result.lost is False
+
+
+@pytest.mark.parametrize(
+    "bet_factory, roll",
+    [
+        (lambda: Place(6, 10), (3, 3)),
+        (lambda: Buy(6, 10), (3, 3)),
+        (lambda: Lay(6, 10), (3, 4)),
+        (lambda: Put(6, 10), (3, 3)),
+    ],
+)
+def test_missing_come_out_working_policy_defaults_to_real_casino_behavior(
+    bet_factory, roll
+):
+    table = Table()
+    table.settings.pop("come_out_working_policy")
+    bet = bet_factory()
+
+    table.dice.fixed_roll(roll)
+    result = bet.get_result(table)
+
+    assert result.won is False
+    assert result.remove is False
+    assert result.amount == 0
+
+
+@pytest.mark.parametrize("always_working", [None, True, False])
+@pytest.mark.parametrize(
+    "bet_factory",
+    [
+        lambda aw: Place(6, 10, always_working=aw),
+        lambda aw: Buy(6, 10, always_working=aw),
+        lambda aw: Lay(6, 10, always_working=aw),
+        lambda aw: Put(6, 10, always_working=aw),
+        lambda aw: Odds(Put, 6, 10, always_working=aw),
+    ],
+)
+def test_copy_and_deepcopy_preserve_always_working_state(bet_factory, always_working):
+    bet = bet_factory(always_working)
+
+    copied = bet.copy()
+    deep_copied = copy.deepcopy(bet)
+
+    assert copied is not bet
+    assert deep_copied is not bet
+    assert copied.always_working is always_working
+    assert deep_copied.always_working is always_working
 
 
 @pytest.mark.parametrize(
