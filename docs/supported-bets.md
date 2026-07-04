@@ -30,8 +30,8 @@ Some bets have options that can be specified in the {py:class}`~crapssim.table.T
 Use `TableSettings["come_out_working_policy"]` to control default bet behavior
 when the point is off:
 
-- `"legacy"` (default): preserves prior simulator behavior.
-- `"real_casino"`: uses table-convention defaults for working/not-working status.
+- `"legacy"`: preserves prior simulator behavior.
+- `"real_casino"` (default): uses table-convention defaults for working/not-working status.
 
 In `"real_casino"` mode:
 

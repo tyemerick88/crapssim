@@ -12,10 +12,10 @@ It is the implementation-focused reference for how bets resolve, whether they re
 
 ## Terms
 
-- Working: Bet can resolve on this roll.
-- Off: Bet is temporarily inactive for this roll.
-- Remove: Bet is taken off the table after resolution.
-- Keep: Bet remains active on the table after resolution.
+- **WORKING** - Bet can resolve on this roll.
+- **OFF** - Bet is temporarily inactive for this roll.
+- **REMOVE** - Bet is taken off the table after resolution.
+- **KEEP** - Bet remains active on the table after resolution.
 
 ## Come-Out Defaults (Point Off)
 
@@ -28,28 +28,28 @@ Per-bet always_working overrides the policy for Place/Buy/Lay/Put.
 
 ## Core Resolution Matrix
 
-| Bet Type | Point Off + Off Bet + Trigger Number Hits | Point Off + Working Bet Wins | Point Off + Working Bet Loses | Point On Win | Point On Loss |
+| Bet Type | Point Off + OFF Bet + Trigger Number Hits | Point Off + WORKING Bet Wins | Point Off + WORKING Bet Loses | Point On Win | Point On Loss |
 | --- | --- | --- | --- | --- | --- |
-| Place | No action, Keep | Pay profit, Keep | Lose stake, Remove | Pay profit, Keep | Lose stake, Remove |
-| Buy | No action, Keep | Win payout (with vig policy), Remove | Lose stake (and vig when applicable), Remove | Win payout (with vig policy), Remove | Lose stake (and vig when applicable), Remove |
-| Lay | No action, Keep | Win payout (with vig policy), Remove | Lose stake (and vig when applicable), Remove | Win payout (with vig policy), Remove | Lose stake (and vig when applicable), Remove |
-| Put | No action, Keep | Win payout, Remove | Lose stake, Remove | Win payout, Remove | Lose stake, Remove |
+| Place | No action, KEEP | Pay profit, KEEP | Lose stake, REMOVE | Pay profit, KEEP | Lose stake, REMOVE |
+| Buy | No action, KEEP | Win payout (with vig policy), REMOVE | Lose stake (and vig when applicable), REMOVE | Win payout (with vig policy), REMOVE | Lose stake (and vig when applicable), REMOVE |
+| Lay | No action, KEEP | Win payout (with vig policy), REMOVE | Lose stake (and vig when applicable), REMOVE | Win payout (with vig policy), REMOVE | Lose stake (and vig when applicable), REMOVE |
+| Put | No action, KEEP | Win payout, REMOVE | Lose stake, REMOVE | Win payout, REMOVE | Lose stake, REMOVE |
 
 ## Contract Bets and Odds
 
 | Bet Type | Come-Out Default | Notes |
 | --- | --- | --- |
-| Come (traveled) | Working | Contract behavior; remains active on come-out. |
-| DontCome (traveled) | Working | Contract behavior; remains active on come-out. |
-| Odds on Come | Off by default | Can be set to working via always_working on odds bet. |
-| Odds on DontCome | Working by default | Can be set off by always_working=False on odds bet. |
+| Come (traveled) | WORKING | Contract behavior; remains active on come-out. |
+| DontCome (traveled) | WORKING | Contract behavior; remains active on come-out. |
+| Odds on Come | OFF by default | Can be set to working via always_working on odds bet. |
+| Odds on DontCome | WORKING by default | Can be set off by always_working=False on odds bet. |
 
 ## Bankroll Accounting Rules
 
-- Wins with Remove credit full returned amount (principal + winnings).
-- Wins with Keep credit profit only (principal stays on table).
+- Wins with REMOVE credit full returned amount (principal + winnings).
+- Wins with KEEP credit profit only (principal stays on table).
 - Losses never credit bankroll.
-- Off/no-action results do not change bankroll and do not remove the bet.
+- OFF/no-action results do not change bankroll and do not remove the bet.
 
 ## Example Outcomes
 
@@ -62,8 +62,8 @@ Per-bet always_working overrides the policy for Place/Buy/Lay/Put.
 ### Buy 4, amount 10, real_casino mode, always_working unset
 
 - Come-out roll of 4 or 7: no action, bet stays on table.
-- Working roll of 4: win resolves and bet is removed.
-- Working roll of 7: loss resolves and bet is removed.
+- WORKING roll of 4: win resolves and bet is removed.
+- WORKING roll of 7: loss resolves and bet is removed.
 
 ### Put 6 with traveled Come 6 on come-out
 

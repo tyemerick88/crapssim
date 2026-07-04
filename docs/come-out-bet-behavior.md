@@ -1,6 +1,8 @@
 # Come-Out Bet Behavior in Craps
 
-This document summarizes the standard behavior of common craps bets during the **come-out roll** (when the puck is OFF). It was prepared while researching GitHub Issue #80 for the `crapssim` project.
+This document summarizes the standard behavior of common craps bets during the **come-out roll** (when the puck is OFF).
+
+It was prepared while researching [GitHub Issue #80](https://github.com/skent259/crapssim/issues/80) for the `crapssim` project.
 
 For the simulator's implementation-level behavior matrix, see `docs/internal/BET_BEHAVIOR_MATRIX.md`.
 
@@ -154,7 +156,7 @@ The contract bet itself does not automatically turn OFF.
 
 # 4. Don't Come Odds
 
-This is the subject of GitHub Issue #80.
+This is the subject of [GitHub Issue #80](https://github.com/skent259/crapssim/issues/80).
 
 Suppose:
 
@@ -169,8 +171,6 @@ Industry-standard behavior:
 Unlike Come odds, Don't Come odds are active unless the player specifically requests they be OFF.
 
 This is intentionally the opposite of Come odds.
-
-Issue #80 exists because the simulator currently treats Don't Come odds like Come odds, which does not match standard casino rules.
 
 ---
 
@@ -207,8 +207,6 @@ Players often describe this as:
 If you want them active during the come-out, you tell the dealer:
 
 > "Place bets working."
-
-This matches the procedure used at many casinos, including the behavior observed at Horseshoe Indianapolis.
 
 ---
 
@@ -270,7 +268,7 @@ Other casinos treat them differently because they are effectively bets on the 7.
 
 Published casino rules are less consistent on Lay bets than on Place or Buy bets.
 
-For simulation software, this behavior is probably best represented as a configurable table rule.
+For simulation software, Lay bets will be OFF on the come-out roll.
 
 ---
 
@@ -304,7 +302,7 @@ Many casinos appear to treat Put bets similarly to Place or Buy bets, allowing t
 
 However, unlike Come odds or Don't Come odds, there is no authoritative published default that is consistently documented.
 
-For simulation software, this is another good candidate for a configurable table rule.
+For simulation software, Put bets will be OFF on the come-out roll.
 
 ---
 
@@ -326,8 +324,8 @@ Example defaults might look like:
 | Don't Come Odds | `always_working = True` |
 | Place | `always_working = False` |
 | Buy | `always_working = False` |
-| Lay | Table default |
-| Put | Table default |
+| Lay | `always_working = False` |
+| Put | `always_working = False` |
 
 This approach would centralize the "working" logic, reduce duplicated code, and make future casino rule variations easier to support.
 
@@ -346,3 +344,4 @@ This approach would centralize the "working" logic, reduce duplicated code, and 
 
 - GitHub Issue #80 (`crapssim`)
   "DC odds should be working during the come-out by default."
+  https://github.com/skent259/crapssim/issues/80
