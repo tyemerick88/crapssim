@@ -42,15 +42,25 @@ class Player(Protocol):
     bankroll: float
     bets: list[Bet]
 
-    def add_bet(self, bet: Bet) -> None: ...
+    def add_bet(self, bet: Bet) -> None:
+        """Add ``bet`` to the player's layout."""
+        ...
 
-    def already_placed_bets(self, bet: Bet) -> list[Bet]: ...
+    def already_placed_bets(self, bet: Bet) -> list[Bet]:
+        """Return bets on the layout with the same placement key as ``bet``."""
+        ...
 
-    def already_placed(self, bet: Bet) -> bool: ...
+    def already_placed(self, bet: Bet) -> bool:
+        """Return True when ``bet`` is already represented on the layout."""
+        ...
 
-    def get_bets_by_type(self, bet_type: type[Bet] | tuple[type[Bet], ...]): ...
+    def get_bets_by_type(self, bet_type: type[Bet] | tuple[type[Bet], ...]):
+        """Return bets matching ``bet_type``."""
+        ...
 
-    def remove_bet(self, bet: Bet) -> None: ...
+    def remove_bet(self, bet: Bet) -> None:
+        """Remove ``bet`` from the player's layout."""
+        ...
 
 
 class Strategy(ABC):
@@ -63,12 +73,14 @@ class Strategy(ABC):
         Update the Strategy after the dice are rolled but before the bets and the table are updated.
 
         For example, if you wanted to know whether the
-        point changed from on to off you could do `self.point_lost = table.point.status = "On" and
-        table.dice.roll.total == 7`. You could not do this in :func:`Strategy`'s :func:`update_bets`
-        method, since the table has already been updated setting the point's status to Off. Other examples
-        include counting the number of place bets that had won after the roll, counting total winnings
-        for certain bets, or recording the starting bankroll upon a new shooter (to later have logic
-        based on winnings of that shooter).
+        point changed from on to off you could do
+        `self.point_lost = table.point.status = "On" and table.dice.roll.total == 7`.
+        You could not do this in :func:`Strategy`'s :func:`update_bets` method,
+        since the table has already been updated setting the point's status to Off.
+        Other examples include counting the number of place bets that had won after
+        the roll, counting total winnings for certain bets, or recording the
+        starting bankroll upon a new shooter (to later have logic based on
+        winnings of that shooter).
 
         Parameters
         ----------
@@ -370,8 +382,9 @@ class AddIfPointOn(AddIfTrue):
 
 
 class AddIfNewShooter(AddIfTrue):
-    """Strategy that adds a bet if there is a new shooter at the table, and the Player doesn't have a bet on the
-    table. Equivalent to AddIfTrue(bet, lambda p: p.table.new_shooter and bet not in p.bets)
+    """Strategy that adds a bet if there is a new shooter at the table,
+    and the Player doesn't have a bet on the table.
+    Equivalent to AddIfTrue(bet, lambda p: p.table.new_shooter and bet not in p.bets)
     """
 
     def __init__(self, bet: Bet):
@@ -438,12 +451,6 @@ class RemoveIfPointOff(RemoveIfTrue):
         Args:
             bet: Bet instance describing which wagers to remove when the point is off.
         """
-        if not any([isinstance(bet, x) for x in [Place, HardWay, Hop]]):
-            key = (
-                lambda b, p: isinstance(b, type(self.bet))
-                and p.table.point.status == "Off"
-            )
-
         if isinstance(bet, Place):
             key = (
                 lambda b, p: isinstance(b, Place)
@@ -461,6 +468,10 @@ class RemoveIfPointOff(RemoveIfTrue):
                 lambda b, p: isinstance(b, Hop)
                 and b.result == self.bet.result
                 and p.table.point.status == "Off"
+            )
+        else:
+            key = (
+                lambda b, p: isinstance(b, type(bet)) and p.table.point.status == "Off"
             )
 
         super().__init__(key)

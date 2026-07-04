@@ -44,6 +44,8 @@ from crapssim.strategy.examples import (
     Place682Come,
     PlaceInside,
     Risk12,
+    ThreePointDolly,
+    ThreePointMolly,
 )
 from crapssim.strategy.odds import (
     ComeOddsMultiplier,
@@ -51,6 +53,7 @@ from crapssim.strategy.odds import (
     DontPassOddsMultiplier,
     OddsAmount,
     OddsMultiplier,
+    PassLineWinMultiplier,
     WinMultiplier,
 )
 from crapssim.strategy.single_bet import (
@@ -64,6 +67,7 @@ from crapssim.strategy.single_bet import (
     BetPut,
 )
 from crapssim.strategy.tools import (
+    NullStrategy,
     RemoveByType,
     RemoveIfPointOff,
     ReplaceIfTrue,
@@ -1626,3 +1630,213 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
 def test_repr_names(strategy, strategy_name):
     # Check above visually make sense
     assert repr(strategy) == strategy_name
+
+
+def test_strategy_eq_non_strategy_returns_notimplemented(base_strategy):
+    assert base_strategy.__eq__(object()) is NotImplemented
+
+
+def test_add_if_true_eq_raises_for_non_strategy(example_bet):
+    strategy = AddIfTrue(example_bet, lambda p: True)
+    with pytest.raises(NotImplementedError):
+        _ = strategy == object()
+
+
+def test_add_if_true_eq_same_type_and_bet(example_bet):
+    left = AddIfTrue(example_bet, lambda p: True)
+    right = AddIfTrue(example_bet, lambda p: False)
+    assert left == right
+
+
+def test_add_if_point_off_repr_additional():
+    bet = MagicMock()
+    strategy = AddIfPointOff(bet)
+    assert repr(strategy) == f"AddIfPointOff(bet={bet})"
+
+
+def test_add_if_point_on_repr_additional():
+    bet = MagicMock()
+    strategy = AddIfPointOn(bet)
+    assert repr(strategy) == f"AddIfPointOn(bet={bet})"
+
+
+def test_add_if_new_shooter_repr_additional():
+    bet = MagicMock()
+    strategy = AddIfNewShooter(bet)
+    assert repr(strategy) == f"AddIfNewShooter(bet={bet})"
+
+
+def test_remove_if_true_completed_empty_bets(player):
+    strategy = RemoveIfTrue(key=lambda b, p: True)
+    player.bets = []
+    assert strategy.completed(player)
+
+
+def test_replace_if_true_key_false_branch(player):
+    strategy = ReplaceIfTrue(PassLine(10), key=lambda b, p: False)
+    player.bets = [PassLine(5)]
+    player.add_bet = MagicMock()
+    player.remove_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    player.remove_bet.assert_not_called()
+    player.add_bet.assert_not_called()
+
+
+def test_replace_if_true_completed(player):
+    strategy = ReplaceIfTrue(PassLine(5), key=lambda b, p: True)
+    player.bankroll = 4
+    player.bets = []
+    assert strategy.completed(player)
+
+
+def test_null_strategy_completed_false(player):
+    strategy = NullStrategy()
+    assert strategy.completed(player) is False
+
+
+def test_odds_amount_completed(player):
+    strategy = OddsAmount(PassLine, {4: 5})
+    assert strategy.completed(player)
+
+    player.bets = [PassLine(5)]
+    assert not strategy.completed(player)
+
+
+def test_odds_multiplier_get_point_number_invalid_bet_raises():
+    table = Table()
+    with pytest.raises(NotImplementedError):
+        OddsMultiplier.get_point_number(Field(5), table)
+
+
+def test_win_multiplier_invalid_base_type_returns_none_multiplier():
+    strategy = WinMultiplier(Field, 1)
+    assert strategy.odds_multiplier is None
+
+
+def test_base_win_multiplier_defaults_and_repr():
+    strategy = PassLineWinMultiplier()
+    assert strategy.win_multiplier == {4: 6.0, 5: 6.0, 6: 6.0, 8: 6.0, 9: 6.0, 10: 6.0}
+    assert repr(strategy) == "PassLineWinMultiplier(win_multiplier=6.0)"
+
+
+def test_hammerlock_completed(player):
+    strategy = HammerLock(5)
+    player.bankroll = 4
+    player.bets = []
+    assert strategy.completed(player)
+
+
+def test_hammerlock_update_bets_remove_place_at_two_wins(player):
+    strategy = HammerLock(5)
+    strategy.place_win_count = 2
+    player.table.point.number = 4
+    player.bets = [Place(6, 6), DontPass(5)]
+    player.remove_bet = MagicMock()
+    player.add_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    player.remove_bet.assert_called_once_with(Place(6, 6))
+    player.add_bet.assert_called_once_with(Odds(DontPass, 4, 30))
+
+
+def test_hammerlock_update_bets_count_over_two_skips_place_transitions(player):
+    strategy = HammerLock(5)
+    strategy.place_win_count = 3
+    strategy.place68 = MagicMock()
+    strategy.place5689 = MagicMock()
+    strategy.pass_and_dontpass = MagicMock()
+    player.table.point.number = 4
+    player.bets = [DontPass(5)]
+    player.add_bet = MagicMock()
+
+    strategy.update_bets(player)
+
+    strategy.place68.assert_not_called()
+    strategy.place5689.assert_not_called()
+    strategy.pass_and_dontpass.assert_not_called()
+    player.add_bet.assert_called_once_with(Odds(DontPass, 4, 30))
+
+
+def test_risk12_completed(player):
+    strategy = Risk12()
+    player.bankroll = 4
+    player.bets = []
+    assert strategy.completed(player)
+
+
+def test_risk12_point_off_insufficient_budget(player):
+    strategy = Risk12()
+    strategy.min_bankroll = player.bankroll
+    player.add_bet = MagicMock()
+
+    strategy.point_off(player)
+
+    player.add_bet.assert_not_called()
+
+
+def test_risk12_point_on_single_place_hits_else_branch(player):
+    strategy = Risk12()
+    strategy.min_bankroll = 88
+    player.bankroll = 94
+    player.table.point.number = 6
+    player.add_bet = MagicMock()
+
+    strategy.point_on(player)
+
+    player.add_bet.assert_called_once_with(Place(8, 6))
+
+
+def test_risk12_point_on_single_place_for_non_six_point(player):
+    strategy = Risk12()
+    strategy.min_bankroll = 88
+    player.bankroll = 94
+    player.table.point.number = 5
+    player.add_bet = MagicMock()
+
+    strategy.point_on(player)
+
+    player.add_bet.assert_called_once_with(Place(6, 6))
+
+
+def test_risk12_update_bets_ignores_unexpected_point_status(player):
+    strategy = Risk12()
+    strategy.point_off = MagicMock()
+    strategy.point_on = MagicMock()
+    player.table.new_shooter = False
+    player.table.point = MagicMock(status="Unknown")
+
+    strategy.update_bets(player)
+
+    strategy.point_off.assert_not_called()
+    strategy.point_on.assert_not_called()
+
+
+def test_place_68pr_completed(player):
+    strategy = Place68PR(6)
+    player.bankroll = 5
+    player.bets = []
+    assert strategy.completed(player)
+
+
+def test_three_point_molly_no_odds_branch():
+    strategy = ThreePointMolly(5, odds_multiplier=None)
+    assert len(strategy.strategies) == 2
+
+
+def test_three_point_dolly_no_odds_branch():
+    strategy = ThreePointDolly(5, win_multiplier=None)
+    assert len(strategy.strategies) == 2
+
+
+def test_win_progression_completed_and_repr(player):
+    strategy = WinProgression(PassLine(5), [1, 2, 3])
+    player.bankroll = 0
+    player.bets = []
+
+    assert strategy.completed(player)
+    assert (
+        repr(strategy) == "WinProgression(first_bet=$5 PassLine, multipliers=[1, 2, 3])"
+    )

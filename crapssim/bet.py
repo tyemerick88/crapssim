@@ -1,3 +1,5 @@
+"""Bet models and payout logic for the craps simulation engine."""
+
 import copy
 import math
 from abc import ABC, ABCMeta, abstractmethod
@@ -68,9 +70,12 @@ class TableSettings(TypedDict, total=False):
     vig_rounding: Literal["none", "ceil_dollar", "nearest_dollar"]
     vig_floor: float
     vig_paid_on_win: bool
+    come_out_working_policy: Literal["legacy", "real_casino"]
 
 
 class Table(Protocol):
+    """Table data required by bet implementations."""
+
     dice: Dice
     point: Point
     settings: TableSettings
@@ -78,11 +83,15 @@ class Table(Protocol):
 
 
 class Player(Protocol):
+    """Player data required by bet implementations."""
+
     table: Table
     bets: list["Bet"]
 
     @property
-    def bankroll(self) -> float: ...
+    def bankroll(self) -> float:
+        """Current bankroll available for placing bets."""
+        ...
 
 
 @dataclass(slots=True, frozen=True)
@@ -367,9 +376,10 @@ class PassLine(_WinningLosingNumbersBet):
     """
     Pass Line bet in craps.
 
-    A bet where the player wins if the first roll is a come-out winner for the active ruleset,
-    loses if the first roll is a come-out loser for the active ruleset, and establishes a point number
-    for subsequent rolls. Once a point is set, the player wins by rolling
+    A bet where the player wins if the first roll is a come-out winner for
+    the active ruleset, loses if the first roll is a come-out loser for the
+    active ruleset, and establishes a point number for subsequent rolls.
+    Once a point is set, the player wins by rolling
     the point number again before rolling a 7. Pays 1 to 1.
     """
 
@@ -657,10 +667,12 @@ class Odds(_WinningLosingNumbersBet):
 
     @property
     def light_side(self) -> bool:
+        """Whether this odds bet follows pass/come-style winning logic."""
         return issubclass(self.base_type, (PassLine, Come, Put))
 
     @property
     def dark_side(self) -> bool:
+        """Whether this odds bet follows dont-pass/dont-come logic."""
         return issubclass(self.base_type, (DontPass, DontCome))
 
     def is_working_on_come_out(self, table: Table) -> bool:
@@ -722,6 +734,7 @@ class Odds(_WinningLosingNumbersBet):
         return allowed
 
     def get_max_odds(self, table: Table) -> float:
+        """Return table-specific maximum odds multiple for this point."""
         if self.light_side:
             return table.settings["max_odds"][self.number]
         elif self.dark_side:
@@ -729,7 +742,8 @@ class Odds(_WinningLosingNumbersBet):
         else:
             raise NotImplementedError(f"Unsupported odds base type: {self.base_type}")
 
-    def base_amount(self, player: Player):
+    def base_amount(self, player: Player) -> float:
+        """Return total base-bet amount this odds bet is attached to."""
         base_bets = [
             x
             for x in player.bets
@@ -1016,6 +1030,7 @@ class Buy(_SimpleBet):
         """Base amount that determines true-odds payouts."""
 
     def vig(self, table: "Table") -> float:
+        """Compute buy-bet commission based on table vig policy."""
         rounding, floor = _vig_policy(table.settings)
         return _compute_vig(self.amount, rounding=rounding, floor=floor)
 
@@ -1118,6 +1133,7 @@ class Lay(_SimpleBet):
         """Base amount risked against the box number."""
 
     def vig(self, table: "Table") -> float:
+        """Compute lay-bet commission based on potential gross win."""
         rounding, floor = _vig_policy(table.settings)
         gross_win = self.amount * self.payout_ratio
         return _compute_vig(gross_win, rounding=rounding, floor=floor)
@@ -1181,7 +1197,7 @@ class Lay(_SimpleBet):
         return f"{super().__str__()}({self.number})"
 
 
-# _WinningLosingNumbersBets with variable payouts -----------------------------------------------------------------
+# _WinningLosingNumbersBets with variable payouts ------------------------------------------------
 
 
 class Field(_WinningLosingNumbersBet):
@@ -1523,16 +1539,19 @@ class Hop(Bet):
 
     @property
     def is_easy(self) -> bool:
+        """Whether this hop result uses two different dice faces."""
         return self.result[0] != self.result[1]
 
     @property
     def winning_results(self) -> list[tuple[int, int]]:
+        """All dice orderings that qualify this hop bet as a winner."""
         if self.is_easy:
             return [self.result, self.result[::-1]]
         else:
             return [self.result]
 
     def payout_ratio(self, table: Table) -> int:
+        """Return table-configured payout multiple for this hop type."""
         payout_type = "easy" if self.is_easy else "hard"
         return table.settings["hop_payouts"][payout_type]
 

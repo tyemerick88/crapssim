@@ -36,7 +36,6 @@ from crapssim.strategy.tools import (
     AddIfNotBet,
     AddIfPointOff,
     AddIfPointOn,
-    AddIfTrue,
     Player,
     RemoveIfPointOff,
     RemoveIfTrue,
@@ -73,6 +72,8 @@ __all__ = [
 
 
 class StrategyMode(enum.Enum):
+    """Modes controlling how a single-bet strategy applies its bet."""
+
     ADD_IF_NOT_BET = enum.auto()
     ADD_IF_POINT_OFF = enum.auto()
     ADD_IF_POINT_ON = enum.auto()
@@ -261,6 +262,8 @@ class BetPlace(Strategy):
 
 
 class BetPassLine(_BaseSingleBet):
+    """Place a Pass Line bet when the configured mode allows it."""
+
     def __init__(
         self,
         bet_amount: SupportsFloat,
@@ -270,6 +273,8 @@ class BetPassLine(_BaseSingleBet):
 
 
 class BetDontPass(_BaseSingleBet):
+    """Place a Dont Pass bet when the configured mode allows it."""
+
     def __init__(
         self,
         bet_amount: SupportsFloat,
@@ -279,6 +284,8 @@ class BetDontPass(_BaseSingleBet):
 
 
 class BetCome(_BaseSingleBet):
+    """Place a Come bet when the configured mode allows it."""
+
     def __init__(
         self,
         bet_amount: SupportsFloat,
@@ -288,6 +295,8 @@ class BetCome(_BaseSingleBet):
 
 
 class BetDontCome(_BaseSingleBet):
+    """Place a Dont Come bet when the configured mode allows it."""
+
     def __init__(
         self,
         bet_amount: SupportsFloat,
@@ -297,6 +306,8 @@ class BetDontCome(_BaseSingleBet):
 
 
 class BetHardWay(_BaseSingleBet):
+    """Place a Hard Way bet on one of the supported hard totals."""
+
     def __init__(
         self,
         number: tuple[int],
@@ -316,6 +327,8 @@ class BetHardWay(_BaseSingleBet):
 
 
 class BetHop(_BaseSingleBet):
+    """Place a Hop bet for a specific dice result pair."""
+
     def __init__(
         self,
         result: tuple[int, int],
@@ -335,6 +348,8 @@ class BetHop(_BaseSingleBet):
 
 
 class BetField(_BaseSingleBet):
+    """Place a Field bet when the configured mode allows it."""
+
     def __init__(
         self,
         bet_amount: SupportsFloat,
@@ -344,6 +359,8 @@ class BetField(_BaseSingleBet):
 
 
 class BetAny7(_BaseSingleBet):
+    """Place an Any Seven bet when the configured mode allows it."""
+
     def __init__(
         self,
         bet_amount: SupportsFloat,

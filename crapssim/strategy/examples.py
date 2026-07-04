@@ -463,13 +463,17 @@ class HammerLock(Strategy):
         DontPassOddsMultiplier(self.odds_multiplier).update_bets(player)
 
     def pass_and_dontpass(self, player: Player) -> None:
-        """Update bets when point is Off: add a PassLine and a DontPass bet if they don't already exist."""
+        """Update bets when point is Off: add a PassLine and
+        a DontPass bet if they don't already exist.
+        """
         RemoveByType(Place).update_bets(player)
         BetPassLine(self.base_amount, StrategyMode.ADD_IF_NOT_BET).update_bets(player)
         BetDontPass(self.base_amount, StrategyMode.ADD_IF_NOT_BET).update_bets(player)
 
     def place68(self, player: Player) -> None:
-        """Update bets to Place the 6 and 8 (regardless of the point) and then lay odds on DontPass bets."""
+        """Update bets to Place the 6 and 8 (regardless of the point)
+        and then lay odds on DontPass bets.
+        """
         place_amounts = {
             6: self.start_six_eight_amount,
             8: self.start_six_eight_amount,
@@ -502,6 +506,9 @@ class Risk12(Strategy):
         """
         super().__init__()
         self.base_amount = float(base_amount)
+        self.min_bankroll = float(
+            base_amount
+        )  # pylint W0201 (attribute-defined-outside-init)
 
     def completed(self, player: Player) -> bool:
         """The strategy is completed if the Player can no longer make the initial PassLine bet, and
@@ -616,13 +623,14 @@ class DiceDoctor(WinProgression):
 
 class Place68PR(Strategy):
     """Place 6 and 8 with a "Press and Regress" approach. Strategy that places the 6 and 8.
-    If either of those bets win, the bet is pressed to 2 * the bet amount. If the bet is won again,
-    it is reduced to the original bet amount.
+    If either of those bets win, the bet is pressed to 2 * the bet amount.
+    If the bet is won again, it is reduced to the original bet amount.
     """
 
     def __init__(self, base_amount: float = 6) -> None:
-        """If point is on place the 6 & 8 of the amount. If you win press the bet to double. If you win
-        again reduce the bet back to starting amount.
+        """If point is on place the 6 & 8 of the amount.
+        If you win press the bet to double.
+        If you win again reduce the bet back to starting amount.
 
         Parameters
         ----------
