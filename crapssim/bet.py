@@ -48,16 +48,6 @@ CLASSIC_POINTS = (4, 5, 6, 8, 9, 10)
 CRAPLESS_POINTS = (2, 3, 4, 5, 6, 8, 9, 10, 11, 12)
 
 
-def _come_out_working_policy(
-    settings: TableSettings,
-) -> Literal["legacy", "real_casino"]:
-    """Return the default working policy for bets when the point is off."""
-    policy = settings.get("come_out_working_policy", "legacy")
-    if policy not in {"legacy", "real_casino"}:
-        return "legacy"
-    return cast(Literal["legacy", "real_casino"], policy)
-
-
 class TableSettings(TypedDict, total=False):
     """Subset of table policy toggles referenced by bet logic."""
 
@@ -71,6 +61,19 @@ class TableSettings(TypedDict, total=False):
     vig_floor: float
     vig_paid_on_win: bool
     come_out_working_policy: Literal["legacy", "real_casino"]
+
+
+def _come_out_working_policy(
+    settings: TableSettings,
+) -> Literal["legacy", "real_casino"]:
+    """Return the default working policy for bets when the point is off."""
+
+    default_policy = "real_casino"
+    policy = settings.get("come_out_working_policy", default_policy)
+
+    if policy not in {"legacy", "real_casino"}:
+        return default_policy
+    return cast(Literal["legacy", "real_casino"], policy)
 
 
 class Table(Protocol):
@@ -761,9 +764,11 @@ class Odds(_WinningLosingNumbersBet):
         return new_bet
 
     def _get_always_working_repr(self) -> str:
-        """Since the default is false, only need to print when True"""
+        """Since the default is None, only need to print when explicitly set."""
         return (
-            f", always_working={self.always_working})" if self.always_working else ")"
+            f", always_working={self.always_working})"
+            if self.always_working is not None
+            else ")"
         )
 
     @property

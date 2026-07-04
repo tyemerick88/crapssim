@@ -112,7 +112,7 @@ def test_ev_oneroll(bet, ev):
         (crapssim.bet.DontCome(1), "DontCome(amount=1.0, number=None)"),
         (
             crapssim.bet.Odds(crapssim.bet.PassLine, 6, 1, False),
-            "Odds(base_type=crapssim.bet.PassLine, number=6, amount=1.0)",
+            "Odds(base_type=crapssim.bet.PassLine, number=6, amount=1.0, always_working=False)",
         ),
         (
             crapssim.bet.Odds(crapssim.bet.Come, 8, 1),
@@ -715,7 +715,7 @@ def test_place_is_active_on_comeout_in_legacy_rules_mode():
     assert result.remove is True
 
 
-def test_place_follows_legacy_rules_mode_if_come_out_working_policy_is_invalid():
+def test_place_follows_real_casino_rules_mode_if_come_out_working_policy_is_invalid():
     table = Table()
     table.settings["come_out_working_policy"] = "invalid"
     bet = Place(6, 12)
@@ -724,9 +724,9 @@ def test_place_follows_legacy_rules_mode_if_come_out_working_policy_is_invalid()
 
     result = bet.get_result(table)
 
-    assert result.amount == 26
-    assert result.won is True
-    assert result.remove is True
+    assert result.amount == 0
+    assert result.won is False
+    assert result.remove is False
 
 
 def test_place_stays_inactive_on_comeout_in_real_casino_mode():
@@ -942,7 +942,9 @@ def test_invalid_comeout_policy_falls_back_to_legacy_for_number_bets(bet_factory
 
     result = bet.get_result(table)
 
-    assert result.won is True
+    assert result.won is False
+    assert result.remove is False
+    assert result.amount == 0
 
 
 @pytest.mark.parametrize(

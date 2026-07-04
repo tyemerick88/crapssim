@@ -523,6 +523,17 @@ def test_remove_if_point_off_remove_bet(player):
     player.remove_bet.assert_not_called()
 
 
+def test_remove_if_point_off_place_removes_only_matching_number(player):
+    player.table.point.number = None
+    player.bets = [Place(6, 6), Place(8, 6)]
+
+    strategy = RemoveIfPointOff(Place(6, 6))
+    strategy.update_bets(player)
+
+    assert Place(6, 6) not in player.bets
+    assert Place(8, 6) in player.bets
+
+
 def test_remove_by_type_remove_bet_called(player):
     strategy = RemoveByType(PassLine)
     player.remove_bet = MagicMock()
@@ -1364,6 +1375,15 @@ def test_win_progression_replaces_existing_progression_bet(player):
     assert player.bets == [Place(6, 24)]
 
 
+def test_win_progression_does_not_mutate_input_bet_instance():
+    first_bet = Place(6, 12)
+    assert first_bet.always_working is None
+
+    WinProgression(first_bet, [1, 2, 3])
+
+    assert first_bet.always_working is None
+
+
 def test_place_68_cpr_update_bets_initial_bets_placed_push_6_add_bet(player):
     strategy = Place68PR(6)
     player.add_bet = MagicMock()
@@ -1511,7 +1531,7 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
             crapssim.strategy.odds.OddsAmount(
                 PassLine, {x: 10 for x in (4, 5, 6, 8, 9, 10)}
             ),
-            "OddsAmount(base_type=crapssim.bet.PassLine, odds_amounts={4: 10, 5: 10, 6: 10, 8: 10, 9: 10, 10: 10})",
+            "OddsAmount(base_type=crapssim.bet.PassLine, odds_amounts={4: 10, 5: 10, 6: 10, 8: 10, 9: 10, 10: 10}, always_working=False)",
         ),
         (
             crapssim.strategy.odds.OddsAmount(
@@ -1523,13 +1543,13 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
             crapssim.strategy.odds.OddsAmount(
                 Come, {x: 10 for x in (4, 5, 6, 8, 9, 10)}
             ),
-            "OddsAmount(base_type=crapssim.bet.Come, odds_amounts={4: 10, 5: 10, 6: 10, 8: 10, 9: 10, 10: 10})",
+            "OddsAmount(base_type=crapssim.bet.Come, odds_amounts={4: 10, 5: 10, 6: 10, 8: 10, 9: 10, 10: 10}, always_working=False)",
         ),
         (
             crapssim.strategy.odds.OddsAmount(
                 DontPass, {x: 10 for x in (4, 5, 6, 8, 9, 10)}
             ),
-            "OddsAmount(base_type=crapssim.bet.DontPass, odds_amounts={4: 10, 5: 10, 6: 10, 8: 10, 9: 10, 10: 10})",
+            "OddsAmount(base_type=crapssim.bet.DontPass, odds_amounts={4: 10, 5: 10, 6: 10, 8: 10, 9: 10, 10: 10}, always_working=False)",
         ),
         (
             crapssim.strategy.odds.OddsAmount(
@@ -1539,7 +1559,7 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
         ),
         (
             crapssim.strategy.odds.PassLineOddsAmount(10),
-            "PassLineOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10))",
+            "PassLineOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10), always_working=False)",
         ),
         (
             crapssim.strategy.odds.PassLineOddsAmount(10, always_working=True),
@@ -1551,23 +1571,23 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
         ),
         (
             crapssim.strategy.odds.ComeOddsAmount(10),
-            "ComeOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10))",
+            "ComeOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10), always_working=False)",
         ),
         (
             crapssim.strategy.odds.DontPassOddsAmount(10),
-            "DontPassOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10))",
+            "DontPassOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10), always_working=False)",
         ),
         (
             crapssim.strategy.odds.DontComeOddsAmount(10),
-            "DontComeOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10))",
+            "DontComeOddsAmount(bet_amount=10.0, numbers=(4, 5, 6, 8, 9, 10), always_working=False)",
         ),
         (
             crapssim.strategy.odds.OddsMultiplier(PassLine, 2.0, False),
-            "OddsMultiplier(base_type=crapssim.bet.PassLine, odds_multiplier=2.0)",
+            "OddsMultiplier(base_type=crapssim.bet.PassLine, odds_multiplier=2.0, always_working=False)",
         ),
         (
             crapssim.strategy.odds.OddsMultiplier(PassLine, 2.0, False),
-            "OddsMultiplier(base_type=crapssim.bet.PassLine, odds_multiplier=2.0)",
+            "OddsMultiplier(base_type=crapssim.bet.PassLine, odds_multiplier=2.0, always_working=False)",
         ),
         (
             crapssim.strategy.odds.OddsMultiplier(PassLine, 2, True),
@@ -1575,15 +1595,15 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
         ),
         (
             crapssim.strategy.odds.OddsMultiplier(DontPass, 1.0, False),
-            "OddsMultiplier(base_type=crapssim.bet.DontPass, odds_multiplier=1.0)",
+            "OddsMultiplier(base_type=crapssim.bet.DontPass, odds_multiplier=1.0, always_working=False)",
         ),
         (
             crapssim.strategy.odds.PassLineOddsMultiplier(),
-            "PassLineOddsMultiplier(odds_multiplier={4: 3.0, 5: 4.0, 6: 5.0, 8: 5.0, 9: 4.0, 10: 3.0})",
+            "PassLineOddsMultiplier(odds_multiplier={4: 3.0, 5: 4.0, 6: 5.0, 8: 5.0, 9: 4.0, 10: 3.0}, always_working=False)",
         ),
         (
             crapssim.strategy.odds.PassLineOddsMultiplier(2),
-            "PassLineOddsMultiplier(odds_multiplier=2)",
+            "PassLineOddsMultiplier(odds_multiplier=2, always_working=False)",
         ),
         (
             crapssim.strategy.odds.PassLineOddsMultiplier(2, always_working=True),
@@ -1595,7 +1615,7 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
         ),
         (
             crapssim.strategy.odds.DontPassOddsMultiplier(2),
-            "DontPassOddsMultiplier(odds_multiplier=2)",
+            "DontPassOddsMultiplier(odds_multiplier=2, always_working=False)",
         ),
         (
             crapssim.strategy.odds.DontComeOddsMultiplier(2, always_working=True),
@@ -1603,27 +1623,27 @@ def test_place_68_cpr_update_bets_initial_bets_placed_no_update(player):
         ),
         (
             crapssim.strategy.odds.WinMultiplier(DontPass, 2),
-            "WinMultiplier(base_type=crapssim.bet.DontPass, win_multiplier=2)",
+            "WinMultiplier(base_type=crapssim.bet.DontPass, win_multiplier=2, always_working=False)",
         ),
         (
             crapssim.strategy.odds.WinMultiplier(PassLine, 1),
-            "WinMultiplier(base_type=crapssim.bet.PassLine, win_multiplier=1)",
+            "WinMultiplier(base_type=crapssim.bet.PassLine, win_multiplier=1, always_working=False)",
         ),
         (
             crapssim.strategy.odds.WinMultiplier(
                 Come, {4: 2, 5: 1, 6: 1, 8: 1, 9: 1, 10: 2}
             ),
-            "WinMultiplier(base_type=crapssim.bet.Come, win_multiplier={4: 2, 5: 1, 6: 1, 8: 1, 9: 1, 10: 2})",
+            "WinMultiplier(base_type=crapssim.bet.Come, win_multiplier={4: 2, 5: 1, 6: 1, 8: 1, 9: 1, 10: 2}, always_working=False)",
         ),
         (
             crapssim.strategy.odds.WinMultiplier(
                 PassLine, {x: 6 for x in (4, 5, 6, 8, 9, 10)}
             ),
-            "WinMultiplier(base_type=crapssim.bet.PassLine, win_multiplier=6)",
+            "WinMultiplier(base_type=crapssim.bet.PassLine, win_multiplier=6, always_working=False)",
         ),
         (
             crapssim.strategy.odds.WinMultiplier(DontCome, {6: 2}),
-            "WinMultiplier(base_type=crapssim.bet.DontCome, win_multiplier={6: 2})",
+            "WinMultiplier(base_type=crapssim.bet.DontCome, win_multiplier={6: 2}, always_working=False)",
         ),
     ],
 )
@@ -1718,7 +1738,10 @@ def test_win_multiplier_invalid_base_type_returns_none_multiplier():
 def test_base_win_multiplier_defaults_and_repr():
     strategy = PassLineWinMultiplier()
     assert strategy.win_multiplier == {4: 6.0, 5: 6.0, 6: 6.0, 8: 6.0, 9: 6.0, 10: 6.0}
-    assert repr(strategy) == "PassLineWinMultiplier(win_multiplier=6.0)"
+    assert (
+        repr(strategy)
+        == "PassLineWinMultiplier(win_multiplier=6.0, always_working=False)"
+    )
 
 
 def test_hammerlock_completed(player):

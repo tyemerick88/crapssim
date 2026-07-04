@@ -457,13 +457,13 @@ class RemoveIfPointOff(RemoveIfTrue):
                 and b.number == self.bet.number
                 and p.table.point.status == "Off"
             )
-        if isinstance(bet, HardWay):
+        elif isinstance(bet, HardWay):
             key = (
                 lambda b, p: isinstance(b, HardWay)
                 and b.number == self.bet.number
                 and p.table.point.status == "Off"
             )
-        if isinstance(bet, Hop):
+        elif isinstance(bet, Hop):
             key = (
                 lambda b, p: isinstance(b, Hop)
                 and b.result == self.bet.result
@@ -500,7 +500,7 @@ class WinProgression(Strategy):
             first_bet: Initial bet template, including starting amount.
             multipliers: Sequence of bankroll multipliers applied after wins.
         """
-        self.bet = first_bet
+        self.bet = first_bet.copy()
         self.multipliers = multipliers
         self.current_progression = 0
         # Default progression-managed place bets to working on the come-out so

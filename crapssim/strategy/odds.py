@@ -83,9 +83,11 @@ class OddsAmount(Strategy):
                 player.add_bet(bet)
 
     def _get_always_working_repr(self) -> str:
-        """Since the default is false, only need to print when True"""
+        """Since the default is None, only need to print when explicitly set."""
         return (
-            f", always_working={self.always_working})" if self.always_working else ")"
+            f", always_working={self.always_working})"
+            if self.always_working is not None
+            else ")"
         )
 
     def __repr__(self):
@@ -224,9 +226,11 @@ class OddsMultiplier(Strategy):
         return len([x for x in player.bets if isinstance(x, self.base_type)]) == 0
 
     def _get_always_working_repr(self) -> str:
-        """Since the default is false, only need to print when True"""
+        """Since the default is None, only need to print when explicitly set."""
         return (
-            f", always_working={self.always_working})" if self.always_working else ")"
+            f", always_working={self.always_working})"
+            if self.always_working is not None
+            else ")"
         )
 
     def __repr__(self) -> str:

@@ -41,8 +41,8 @@ Per-bet always_working overrides the policy for Place/Buy/Lay/Put.
 | --- | --- | --- |
 | Come (traveled) | WORKING | Contract behavior; remains active on come-out. |
 | DontCome (traveled) | WORKING | Contract behavior; remains active on come-out. |
-| Odds on Come | OFF by default | Can be set to working via always_working on odds bet. |
-| Odds on DontCome | WORKING by default | Can be set off by always_working=False on odds bet. |
+| Odds on Come | OFF by default | Can be set to working via always_working on odds bet. If OFF and a trigger number (base number or 7) rolls on come-out, odds push and are removed (stake returned). |
+| Odds on DontCome | WORKING by default | Can be set off by always_working=False on odds bet. If OFF and a trigger number (base number or 7) rolls on come-out, odds push and are removed (stake returned). |
 
 ## Bankroll Accounting Rules
 
@@ -50,6 +50,7 @@ Per-bet always_working overrides the policy for Place/Buy/Lay/Put.
 - Wins with KEEP credit profit only (principal stays on table).
 - Losses never credit bankroll.
 - OFF/no-action results do not change bankroll and do not remove the bet.
+- Exception: OFF odds that hit a trigger on come-out push and are removed, returning principal.
 
 ## Example Outcomes
 
