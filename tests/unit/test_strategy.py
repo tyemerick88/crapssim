@@ -63,7 +63,12 @@ from crapssim.strategy.single_bet import (
     BetPlace,
     BetPut,
 )
-from crapssim.strategy.tools import RemoveByType, RemoveIfPointOff, ReplaceIfTrue
+from crapssim.strategy.tools import (
+    RemoveByType,
+    RemoveIfPointOff,
+    ReplaceIfTrue,
+    WinProgression,
+)
 
 
 @pytest.fixture
@@ -1326,12 +1331,33 @@ def test_place_68_cpr_press_no_increases(player):
     player.add_bet.assert_not_called()
 
 
+def test_place_68_cpr_regress_after_second_win(player):
+    strategy = Place68PR(6)
+    player.bets = [Place(6, 12), Place(8, 6)]
+    strategy.six_winnings = 14
+
+    strategy.update_bets(player)
+
+    assert Place(6, 6) in player.bets
+    assert Place(6, 12) not in player.bets
+
+
 def test_place_68_cpr_update_bets_initial_bets(player):
     strategy = Place68PR(6)
     player.add_bet = MagicMock()
     player.table.point.number = 6
     strategy.update_bets(player)
     player.add_bet.assert_has_calls([call(Place(6, 6)), call(Place(8, 6))])
+
+
+def test_win_progression_replaces_existing_progression_bet(player):
+    strategy = WinProgression(Place(6, 12), [1, 2, 3])
+    strategy.current_progression = 1
+    player.bets = [Place(6, 12)]
+
+    strategy.update_bets(player)
+
+    assert player.bets == [Place(6, 24)]
 
 
 def test_place_68_cpr_update_bets_initial_bets_placed_push_6_add_bet(player):

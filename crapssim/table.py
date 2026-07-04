@@ -208,7 +208,8 @@ class Table:
             "vig_rounding": "nearest_dollar",
             "vig_floor": 0,
             "vig_paid_on_win": False,
-            "come_out_working_policy": "legacy",
+            "come_out_working_policy": "real_casino",
+
         }
         self.pass_rolls: int = 0
         self.last_roll: int | None = None

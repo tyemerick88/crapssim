@@ -838,6 +838,7 @@ def test_odds_inactive_when_point_off_unless_always_working():
 def test_come_out_policy_changes_place_buy_lay_resolution():
     legacy = Table()
     legacy.settings["vig_paid_on_win"] = True
+    legacy.settings["come_out_working_policy"] = "legacy"
     real_casino = Table()
     real_casino.settings["come_out_working_policy"] = "real_casino"
     real_casino.settings["vig_paid_on_win"] = True

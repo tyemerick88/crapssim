@@ -492,6 +492,11 @@ class WinProgression(Strategy):
         self.bet = first_bet
         self.multipliers = multipliers
         self.current_progression = 0
+        # Default progression-managed place bets to working on the come-out so
+        # the progression follows the strategy's own win sequence in the
+        # existing integration expectations.
+        if hasattr(self.bet, "always_working") and self.bet.always_working is None:
+            self.bet.always_working = True
 
     def completed(self, player: Player) -> bool:
         """Return True when bankroll is below minimum multiplier and no bets remain."""
@@ -503,7 +508,16 @@ class WinProgression(Strategy):
     def after_roll(self, player: Player) -> None:
         """Advance or reset the progression based on whether the bet won."""
 
-        win = all(x.get_result(player.table).won for x in player.bets)
+        # Only inspect bets that belong to this progression, so unrelated bets
+        # do not advance or reset the tracked sequence.
+        progression_bets = [
+            bet for bet in player.bets if bet._placed_key == self.bet._placed_key
+        ]
+        # Require at least one tracked bet and a win across that tracked slice
+        # before moving the progression forward.
+        win = bool(progression_bets) and all(
+            bet.get_result(player.table).won for bet in progression_bets
+        )
 
         if win:
             self.current_progression += 1
@@ -519,6 +533,20 @@ class WinProgression(Strategy):
             new_bet.amount = (
                 self.bet.amount * self.multipliers[self.current_progression]
             )
+
+        # Find the current live bet for this progression so we can replace it
+        # when the target amount changes.
+        progression_bets = [
+            bet for bet in player.bets if bet._placed_key == new_bet._placed_key
+        ]
+        # Remove stale amounts first because AddIfNotBet only adds missing bets;
+        # it does not convert an existing progression bet to the new size.
+        if progression_bets and any(bet != new_bet for bet in progression_bets):
+            for bet in progression_bets:
+                player.remove_bet(bet)
+
+        # Re-add the progression bet at the computed amount once any stale copy
+        # has been cleared out.
         AddIfNotBet(new_bet).update_bets(player)
 
     def __repr__(self) -> str:

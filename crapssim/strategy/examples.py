@@ -707,6 +707,21 @@ class Place68PR(Strategy):
         if self.eight_winnings == self.win_one_amount:
             player.add_bet(Place(8, self.starting_amount))
 
+    def regress(self, player: Player) -> None:
+        """Reduce pressed place bets back to the starting amount after the second hit.
+
+        Parameters
+        ----------
+        player
+            The player to make the bets for.
+        """
+        if self.six_winnings == self.win_two_amount:
+            player.remove_bet(Place(6, self.press_amount))
+            player.add_bet(Place(6, self.starting_amount))
+        if self.eight_winnings == self.win_two_amount:
+            player.remove_bet(Place(8, self.press_amount))
+            player.add_bet(Place(8, self.starting_amount))
+
     def update_bets(self, player: Player) -> None:
         """Ensure that a Place6 and Place8 bet always exist for the player of base amount.
         Press the bet if you win and haven't pressed the bet yet.
@@ -717,6 +732,7 @@ class Place68PR(Strategy):
             The player to place the bets for.
         """
         self.ensure_bets_exist(player)
+        self.regress(player)
         self.press(player)
 
     def __repr__(self) -> str:
