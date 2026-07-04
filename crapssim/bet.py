@@ -88,13 +88,13 @@ class Table(Protocol):
 class Player(Protocol):
     """Player data required by bet implementations."""
 
-    table: Table
     bets: list["Bet"]
 
     @property
-    def bankroll(self) -> float:
-        """Current bankroll available for placing bets."""
-        ...
+    def table(self) -> Table: ...
+
+    @property
+    def bankroll(self) -> float: ...
 
 
 @dataclass(slots=True, frozen=True)

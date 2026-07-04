@@ -31,11 +31,13 @@ from crapssim.strategy import (
     AggregateStrategy,
     BetPlace,
     CountStrategy,
+    PlaceHitProgression,
     RemoveIfTrue,
     Strategy,
 )
 from crapssim.strategy.examples import (
     DiceDoctor,
+    DoubleTap,
     HammerLock,
     Pass2Come,
     PassLinePlace68,
@@ -46,6 +48,7 @@ from crapssim.strategy.examples import (
     Risk12,
     ThreePointDolly,
     ThreePointMolly,
+    SqueezePlay,
 )
 from crapssim.strategy.odds import (
     ComeOddsMultiplier,
@@ -194,6 +197,196 @@ def test_aggregate_strategy_completed_calls_all_completed(aggregate_strategy, pl
 
     aggregate_strategy.strategies[0].completed.assert_called_once_with(player)
     aggregate_strategy.strategies[1].completed.assert_called_once_with(player)
+
+
+def test_aggregate_strategy_calls_all_after_roll(aggregate_strategy, player):
+    aggregate_strategy.strategies[0].after_roll = MagicMock()
+    aggregate_strategy.strategies[1].after_roll = MagicMock()
+
+    aggregate_strategy.after_roll(player)
+
+    aggregate_strategy.strategies[0].after_roll.assert_called_once_with(player)
+    aggregate_strategy.strategies[1].after_roll.assert_called_once_with(player)
+
+
+def test_aggregate_strategy_after_roll_skips_completed(aggregate_strategy, player):
+    aggregate_strategy.strategies[0].completed = lambda p: True
+    aggregate_strategy.strategies[1].completed = lambda p: False
+    aggregate_strategy.strategies[0].after_roll = MagicMock()
+    aggregate_strategy.strategies[1].after_roll = MagicMock()
+
+    aggregate_strategy.after_roll(player)
+
+    aggregate_strategy.strategies[0].after_roll.assert_not_called()
+    aggregate_strategy.strategies[1].after_roll.assert_called_once_with(player)
+
+
+# ── PlaceHitProgression ───────────────────────────────────────────────────────
+
+
+def test_place_hit_progression_empty_stages_raises():
+    with pytest.raises(ValueError):
+        PlaceHitProgression([])
+
+
+def test_place_hit_progression_numbers_is_union_of_stages():
+    strategy = PlaceHitProgression([{5: 15, 9: 15}, {5: 15, 9: 15, 4: 10, 10: 10}])
+    assert strategy.numbers == frozenset({4, 5, 9, 10})
+
+
+def test_place_hit_progression_target_holds_last_stage():
+    strategy = PlaceHitProgression([{6: 12}, {6: 18}, {6: 24}])
+    strategy.hit_count = 99
+    assert strategy._target() == {6: 24}
+
+
+def test_place_hit_progression_counts_owned_hit(player):
+    strategy = PlaceHitProgression([{6: 12}, {6: 18}])
+    player.table.point.number = 4  # point on
+    player.table.dice.result = (2, 4)  # total 6, not a seven-out
+    bet = Place(6, 12)
+    bet.get_result = MagicMock(return_value=BetResult(14, True))
+    player.bets = [bet]
+
+    strategy.after_roll(player)
+
+    assert strategy.hit_count == 1
+
+
+def test_place_hit_progression_ignores_unowned_hit(player):
+    strategy = PlaceHitProgression([{6: 12}])  # owns only 6
+    player.table.point.number = 4
+    player.table.dice.result = (3, 5)  # total 8
+    winning_eight = Place(8, 12)
+    winning_eight.get_result = MagicMock(return_value=BetResult(14, True))
+    player.bets = [winning_eight]
+
+    strategy.after_roll(player)
+
+    assert strategy.hit_count == 0
+
+
+def test_place_hit_progression_seven_out_sets_flag(player):
+    strategy = PlaceHitProgression([{6: 12}])
+    player.table.point.number = 6  # point on
+    player.table.dice.result = (3, 4)  # seven-out
+
+    strategy.after_roll(player)
+
+    assert strategy._seven_out is True
+
+
+def test_place_hit_progression_seven_out_resets(player):
+    strategy = PlaceHitProgression([{6: 12}, {6: 18}])
+    strategy.hit_count = 1
+    strategy._seven_out = True
+    player.bets = [Place(6, 18)]
+
+    strategy.update_bets(player)
+
+    assert player.bets == []
+    assert strategy.hit_count == 0
+    assert strategy._seven_out is False
+
+
+def test_place_hit_progression_comeout_clears_but_preserves_progression(player):
+    strategy = PlaceHitProgression([{6: 12}, {6: 18}])
+    strategy.hit_count = 1
+    player.table.point.number = None  # come-out
+    player.bets = [Place(6, 18)]
+
+    strategy.update_bets(player)
+
+    assert player.bets == []
+    assert strategy.hit_count == 1  # progression preserved across the come-out
+
+
+def test_place_hit_progression_reconciles_to_current_stage(player):
+    strategy = PlaceHitProgression([{6: 12, 8: 12}, {6: 18, 8: 18}])
+    strategy.hit_count = 1
+    player.bankroll = float("inf")
+    player.table.point.number = 4  # point on
+    player.bets = []
+
+    strategy.update_bets(player)
+
+    assert Place(6, 18) in player.bets
+    assert Place(8, 18) in player.bets
+
+
+def test_place_hit_progression_leaves_unowned_bets_untouched(player):
+    strategy = PlaceHitProgression([{6: 12}])  # owns only 6
+    player.bankroll = float("inf")
+    player.table.point.number = 4
+    other = Place(8, 12)
+    player.bets = [other]
+
+    strategy.update_bets(player)
+
+    assert other in player.bets  # unowned bet is left alone
+    assert Place(6, 12) in player.bets
+
+
+def test_place_hit_progression_repr():
+    strategy = PlaceHitProgression([{6: 12.0}])
+    assert repr(strategy) == "PlaceHitProgression(stages=[{6: 12.0}])"
+
+
+# ── SqueezePlay ───────────────────────────────────────────────────────────────
+
+
+def test_squeeze_play_stage_boards():
+    strategy = SqueezePlay()
+    assert strategy.stages == [
+        {5: 15.0, 6: 18.0, 8: 18.0, 9: 15.0},
+        {5: 15.0, 6: 18.0, 8: 18.0, 9: 15.0, 4: 10.0, 10: 10.0},
+        {5: 20.0, 6: 24.0, 8: 24.0, 9: 20.0, 4: 10.0, 10: 10.0},
+        {4: 10.0, 5: 10.0, 6: 12.0, 8: 12.0, 9: 10.0, 10: 10.0},
+    ]
+
+
+def test_squeeze_play_owns_all_place_numbers():
+    assert SqueezePlay().numbers == frozenset({4, 5, 6, 8, 9, 10})
+
+
+def test_squeeze_play_repr():
+    assert repr(SqueezePlay()) == "SqueezePlay()"
+
+
+# ── DoubleTap ─────────────────────────────────────────────────────────────────
+
+
+def test_double_tap_has_one_progression_per_place_number():
+    strategy = DoubleTap()
+    assert len(strategy.strategies) == 6
+    owned = {next(iter(s.numbers)) for s in strategy.strategies}
+    assert owned == {4, 5, 6, 8, 9, 10}
+    assert all(len(s.numbers) == 1 for s in strategy.strategies)
+
+
+def test_double_tap_six_eight_sequence():
+    strategy = DoubleTap()
+    six = next(s for s in strategy.strategies if s.numbers == frozenset({6}))
+    assert [stage[6] for stage in six.stages] == [12, 24, 48, 12, 24, 48, 12]
+
+
+def test_double_tap_outside_sequence():
+    strategy = DoubleTap()
+    five = next(s for s in strategy.strategies if s.numbers == frozenset({5}))
+    assert [stage[5] for stage in five.stages] == [10, 20, 40, 10, 20, 40, 10]
+
+
+def test_double_tap_scales_with_base_amount():
+    strategy = DoubleTap(base_amount=25)
+    six = next(s for s in strategy.strategies if s.numbers == frozenset({6}))
+    nine = next(s for s in strategy.strategies if s.numbers == frozenset({9}))
+    # 6/8 start near 7/6 * 25 = 29.17, rounded to the nearest $6 -> $30.
+    assert [stage[6] for stage in six.stages] == [30, 60, 120, 30, 60, 120, 30]
+    assert [stage[9] for stage in nine.stages] == [25, 50, 100, 25, 50, 100, 25]
+
+
+def test_double_tap_repr():
+    assert repr(DoubleTap()) == "DoubleTap(base_amount=10.0)"
 
 
 def test_aggregate_repr(aggregate_strategy):

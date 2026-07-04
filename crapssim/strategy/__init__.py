@@ -21,6 +21,7 @@ from crapssim.strategy.tools import (
     AddIfTrue,
     AggregateStrategy,
     CountStrategy,
+    PlaceHitProgression,
     RemoveIfPointOff,
     RemoveIfTrue,
     Strategy,

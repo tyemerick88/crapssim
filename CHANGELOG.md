@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Support for Crapless craps via new `rules` module, with corresponding updates across table and bet from [@tyemerick88] in [#86]
 * Expanded the test suite with new unit and integration tests to improve coverage from [@tyemerick88] in [#86]
+* `PlaceHitProgression` strategy tool: For strategies built from place bets that change after each hit in predictable stages from [@skent259] in [#87]
+  * `SqueezePlay` strategy example: $66 inside -> add 4/10 -> Press inside -> Regress to $64 across
+  * `DoubleTap` strategy example: presses each place number twice then regresses, with every number progressing independently on its own hits
+
+### Fixed
+
+* `AggregateStrategy` now forwards `after_roll` to its substrategies, so composed strategies that count wins or detect a seven-out in `after_roll` observe the roll [#87]
 
 
 ## [0.4.0] - 2025-11-18
@@ -153,6 +160,7 @@ Initial version
 [#82]: https://github.com/skent259/crapssim/pull/71
 [#83]: https://github.com/skent259/crapssim/pull/71
 [#86]: https://github.com/skent259/crapssim/pull/86
+[#87]: https://github.com/skent259/crapssim/pull/87
 
 [#48]: https://github.com/skent259/crapssim/issues/48
 [#53]: https://github.com/skent259/crapssim/issues/53
