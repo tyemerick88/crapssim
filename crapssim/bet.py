@@ -68,8 +68,10 @@ class Table(Protocol):
 
 
 class Player(Protocol):
-    table: Table
     bets: list["Bet"]
+
+    @property
+    def table(self) -> Table: ...
 
     @property
     def bankroll(self) -> float: ...

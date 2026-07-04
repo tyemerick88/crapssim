@@ -31,6 +31,7 @@ from crapssim.strategy.tools import (
     AddIfTrue,
     AggregateStrategy,
     CountStrategy,
+    PlaceHitProgression,
     Player,
     RemoveByType,
     Strategy,
@@ -118,9 +119,10 @@ class PlaceInside(AggregateStrategy):
             or a number that supports float. If its a number that supports float, the six and eight
             amounts will be the number * (6 / 5) to make the payout a whole number.
         """
+        self.bet_amount: float | dict[int, float]
         if isinstance(bet_amount, SupportsFloat):
             self.bet_amount = float(bet_amount)
-            six_eight_amount = bet_amount * (6 / 5)
+            six_eight_amount = self.bet_amount * (6 / 5)
             amount_dict = {
                 5: self.bet_amount,
                 6: six_eight_amount,
@@ -849,7 +851,7 @@ class ThreePointMolly(AggregateStrategy):
     ):
 
         self.bet_amount: float = float(bet_amount)
-        self.odds_multiplier: float = (
+        self.odds_multiplier: float | None = (
             float(odds_multiplier) if odds_multiplier is not None else None
         )
 
@@ -903,7 +905,7 @@ class ThreePointDolly(AggregateStrategy):
     ):
 
         self.bet_amount: float = float(bet_amount)
-        self.win_multiplier: float = (
+        self.win_multiplier: float | None = (
             float(win_multiplier) if win_multiplier is not None else None
         )
 
@@ -925,3 +927,110 @@ class ThreePointDolly(AggregateStrategy):
             f"{self.__class__.__name__}(amount={self.bet_amount}, "
             f"win_multiplier={self.win_multiplier})"
         )
+
+
+class SqueezePlay(PlaceHitProgression):
+    """Gets you from $66 inside to $64 across all paid within 3 rolls.
+
+    A place-betting progression (no pass line) that starts with $66 inside, adds
+    the 4 and 10 after the first hit, presses the inside numbers to $88 after the
+    second hit, and regresses everything to a flat $64 across after the third
+    hit. The intent is to recover the initial outlay quickly and then hold a
+    lower-risk board::
+
+        0 hits  Place $66 inside:  5@$15, 6@$18, 8@$18, 9@$15
+        1 hit   Add the 4 and 10:  ... plus 4@$10, 10@$10
+        2 hits  Press inside to $88: 5@$20, 6@$24, 8@$24, 9@$20 (4 & 10 stay $10)
+        3+ hits Regress to $64 across: 4@$10, 5@$10, 6@$12, 8@$12, 9@$10, 10@$10
+
+    Implemented as a :class:`~crapssim.strategy.tools.PlaceHitProgression`, so the
+    progression carries across made points and resets only on a seven-out. Because
+    the inside numbers include the point when it is 5, 6, 8, or 9, rolling the
+    point both pays the Place bet and makes the point; that hit still counts
+    toward the goal since a made point no longer resets the progression. While the
+    point is off (the come-out) the place bets are taken down so a come-out seven
+    can't sweep them, then rebuilt at the current stage once a new point is on.
+
+    Buy-in of $500 at a $10 table minimum comfortably covers the largest board.
+
+    Strategy Source: https://www.marconius.com/craps/#squeeze
+
+    See Also:
+        :class:`~crapssim.strategy.tools.PlaceHitProgression`
+    """
+
+    _INSIDE_INITIAL = {5: 15.0, 6: 18.0, 8: 18.0, 9: 15.0}  # $66 inside
+    _INSIDE_PRESSED = {5: 20.0, 6: 24.0, 8: 24.0, 9: 20.0}  # $88 inside
+    _OUTSIDE = {4: 10.0, 10: 10.0}
+    _ACROSS_FINAL = {4: 10.0, 5: 10.0, 6: 12.0, 8: 12.0, 9: 10.0, 10: 10.0}  # $64 across
+
+    def __init__(self) -> None:
+        """Build the fixed four-stage squeeze progression."""
+        super().__init__(
+            stages=[
+                self._INSIDE_INITIAL,  # 0 hits: $66 inside
+                {**self._INSIDE_INITIAL, **self._OUTSIDE},  # 1 hit: add 4 and 10
+                {**self._INSIDE_PRESSED, **self._OUTSIDE},  # 2 hits: press to $88
+                self._ACROSS_FINAL,  # 3+ hits: $64 across
+            ]
+        )
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
+
+class DoubleTap(AggregateStrategy):
+    """Press each place number twice, collect, and repeat -- independently.
+
+    Every place number runs its own "double tap" progression that presses on a
+    hit, presses again on the next, then regresses to the starting amount on the
+    third (the "double tap" before taking the profit down), and repeats. Each
+    number advances only on its own hits, so a hot 6 climbs while a cold 4 sits
+    at its base amount. At the default ``base_amount`` of $10::
+
+        6 and 8:      12 -> 24 -> 48 -> 12 -> 24 -> 48 -> 12
+        4, 5, 9, 10:  10 -> 20 -> 40 -> 10 -> 20 -> 40 -> 10
+
+    The outside numbers (4, 5, 9, 10) start at ``base_amount``; the 6 and 8 start
+    near ``6 / 5 * base_amount``, rounded to the nearest $6 increment so their 7:6
+    payouts stay whole. In both cases the pattern is the same: double the starting
+    bet twice, then drop back to the start. Every number is an independent
+    :class:`~crapssim.strategy.tools.PlaceHitProgression`, so each progression
+    carries across made points and they all reset to their base amounts on a
+    seven-out.
+
+    Args:
+        base_amount: Starting amount for the outside numbers. Should be a multiple
+            of $5 so the 4, 5, 9, and 10 pay whole. Defaults to 10.
+
+    See Also:
+        :class:`~crapssim.strategy.tools.PlaceHitProgression`
+    """
+
+    # Multipliers applied to the starting bet: double twice, then back to start.
+    _SIX_EIGHT_MULTIPLIERS = (1, 2, 4, 1, 2, 4, 1)
+    _OUTSIDE_MULTIPLIERS = (1, 2, 4, 1, 2, 4, 1)
+
+    def __init__(self, base_amount: float = 10.0) -> None:
+        """Build one independent double-tap progression per place number."""
+        self.base_amount = float(base_amount)
+        # 6 and 8 pay 7:6, so their bets must be multiples of $6.
+        six_eight_base = 6/5 * self.base_amount
+
+        progressions = []
+        for number in (6, 8):
+            stages = [
+                {number: multiplier * six_eight_base}
+                for multiplier in self._SIX_EIGHT_MULTIPLIERS
+            ]
+            progressions.append(PlaceHitProgression(stages))
+        for number in (4, 5, 9, 10):
+            stages = [
+                {number: multiplier * self.base_amount}
+                for multiplier in self._OUTSIDE_MULTIPLIERS
+            ]
+            progressions.append(PlaceHitProgression(stages))
+        super().__init__(*progressions)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(base_amount={self.base_amount})"
