@@ -8,7 +8,7 @@ regress, the carry-across-made-points behavior, and the seven-out reset.
 import pytest
 
 from crapssim.strategy import PlaceHitProgression
-from crapssim.strategy.examples import SqueezePlay
+from crapssim.strategy.examples import DoubleTap, SqueezePlay
 from crapssim.table import Table
 
 BUY_IN = 500.0
@@ -83,3 +83,32 @@ def test_independent_progressions_press_separately():
 
     # The 6 pressed to $24 on its own hits; the untouched 8 stayed at $12.
     assert bets == ["$12 Place(8)", "$24 Place(6)"]
+
+
+def test_double_tap_presses_and_regresses_per_number():
+    """DoubleTap presses each number twice then regresses, independently."""
+    table = Table()
+    player = table.add_player(bankroll=2000.0, strategy=DoubleTap())
+    # pt 4 (outside, so inside hits don't make the point); hit the 6 three times
+    # (12 -> 24 -> 48 -> regress to 12), with a trailing non-scoring roll.
+    table.fixed_run(
+        dice_outcomes=[(2, 2), (3, 3), (2, 4), (3, 3), (1, 1)], verbose=False
+    )
+    bets = {b.number: b.amount for b in player.bets}
+
+    # The 6 double-tapped back to its $12 base; every other number sits at base.
+    assert bets == {4: 10.0, 5: 10.0, 6: 12.0, 8: 12.0, 9: 10.0, 10: 10.0}
+
+
+def test_double_tap_resets_all_numbers_on_seven_out():
+    """A seven-out clears every number's progression back to its base."""
+    table = Table()
+    player = table.add_player(bankroll=2000.0, strategy=DoubleTap())
+    # pt 4; press the 6 once (-> $24); seven-out; new pt 6; realize fresh board.
+    table.fixed_run(
+        dice_outcomes=[(2, 2), (3, 3), (3, 4), (2, 4), (1, 1)], verbose=False
+    )
+    bets = {b.number: b.amount for b in player.bets}
+
+    # Board rebuilt entirely at base amounts (6 back to $12, not $24).
+    assert bets == {4: 10.0, 5: 10.0, 6: 12.0, 8: 12.0, 9: 10.0, 10: 10.0}

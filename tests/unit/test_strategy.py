@@ -34,6 +34,7 @@ from crapssim.strategy import (
 )
 from crapssim.strategy.examples import (
     DiceDoctor,
+    DoubleTap,
     HammerLock,
     Pass2Come,
     PassLinePlace68,
@@ -329,6 +330,42 @@ def test_squeeze_play_owns_all_place_numbers():
 
 def test_squeeze_play_repr():
     assert repr(SqueezePlay()) == "SqueezePlay()"
+
+
+# ── DoubleTap ─────────────────────────────────────────────────────────────────
+
+
+def test_double_tap_has_one_progression_per_place_number():
+    strategy = DoubleTap()
+    assert len(strategy.strategies) == 6
+    owned = {next(iter(s.numbers)) for s in strategy.strategies}
+    assert owned == {4, 5, 6, 8, 9, 10}
+    assert all(len(s.numbers) == 1 for s in strategy.strategies)
+
+
+def test_double_tap_six_eight_sequence():
+    strategy = DoubleTap()
+    six = next(s for s in strategy.strategies if s.numbers == frozenset({6}))
+    assert [stage[6] for stage in six.stages] == [12, 24, 48, 12, 24, 48, 12]
+
+
+def test_double_tap_outside_sequence():
+    strategy = DoubleTap()
+    five = next(s for s in strategy.strategies if s.numbers == frozenset({5}))
+    assert [stage[5] for stage in five.stages] == [10, 20, 40, 10, 20, 40, 10]
+
+
+def test_double_tap_scales_with_base_amount():
+    strategy = DoubleTap(base_amount=25)
+    six = next(s for s in strategy.strategies if s.numbers == frozenset({6}))
+    nine = next(s for s in strategy.strategies if s.numbers == frozenset({9}))
+    # 6/8 start near 7/6 * 25 = 29.17, rounded to the nearest $6 -> $30.
+    assert [stage[6] for stage in six.stages] == [30, 60, 120, 30, 60, 120, 30]
+    assert [stage[9] for stage in nine.stages] == [25, 50, 100, 25, 50, 100, 25]
+
+
+def test_double_tap_repr():
+    assert repr(DoubleTap()) == "DoubleTap(base_amount=10.0)"
 
 
 def test_aggregate_repr(aggregate_strategy):

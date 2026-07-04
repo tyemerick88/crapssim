@@ -977,3 +977,60 @@ class SqueezePlay(PlaceHitProgression):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
+
+
+class DoubleTap(AggregateStrategy):
+    """Press each place number twice, collect, and repeat -- independently.
+
+    Every place number runs its own "double tap" progression that presses on a
+    hit, presses again on the next, then regresses to the starting amount on the
+    third (the "double tap" before taking the profit down), and repeats. Each
+    number advances only on its own hits, so a hot 6 climbs while a cold 4 sits
+    at its base amount. At the default ``base_amount`` of $10::
+
+        6 and 8:      12 -> 24 -> 48 -> 12 -> 24 -> 48 -> 12
+        4, 5, 9, 10:  10 -> 20 -> 40 -> 10 -> 20 -> 40 -> 10
+
+    The outside numbers (4, 5, 9, 10) start at ``base_amount``; the 6 and 8 start
+    near ``6 / 5 * base_amount``, rounded to the nearest $6 increment so their 7:6
+    payouts stay whole. In both cases the pattern is the same: double the starting
+    bet twice, then drop back to the start. Every number is an independent
+    :class:`~crapssim.strategy.tools.PlaceHitProgression`, so each progression
+    carries across made points and they all reset to their base amounts on a
+    seven-out.
+
+    Args:
+        base_amount: Starting amount for the outside numbers. Should be a multiple
+            of $5 so the 4, 5, 9, and 10 pay whole. Defaults to 10.
+
+    See Also:
+        :class:`~crapssim.strategy.tools.PlaceHitProgression`
+    """
+
+    # Multipliers applied to the starting bet: double twice, then back to start.
+    _SIX_EIGHT_MULTIPLIERS = (1, 2, 4, 1, 2, 4, 1)
+    _OUTSIDE_MULTIPLIERS = (1, 2, 4, 1, 2, 4, 1)
+
+    def __init__(self, base_amount: float = 10.0) -> None:
+        """Build one independent double-tap progression per place number."""
+        self.base_amount = float(base_amount)
+        # 6 and 8 pay 7:6, so their bets must be multiples of $6.
+        six_eight_base = 6/5 * self.base_amount
+
+        progressions = []
+        for number in (6, 8):
+            stages = [
+                {number: multiplier * six_eight_base}
+                for multiplier in self._SIX_EIGHT_MULTIPLIERS
+            ]
+            progressions.append(PlaceHitProgression(stages))
+        for number in (4, 5, 9, 10):
+            stages = [
+                {number: multiplier * self.base_amount}
+                for multiplier in self._OUTSIDE_MULTIPLIERS
+            ]
+            progressions.append(PlaceHitProgression(stages))
+        super().__init__(*progressions)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(base_amount={self.base_amount})"
