@@ -498,10 +498,7 @@ class RemoveIfPointOff(RemoveIfTrue):
             )
         else:
             bet_type = type(bet)
-            key = (
-                lambda b, p: isinstance(b, bet_type)
-                and p.table.point.status == "Off"
-            )
+            key = lambda b, p: isinstance(b, bet_type) and p.table.point.status == "Off"
 
         super().__init__(key)
 
@@ -675,9 +672,7 @@ class PlaceHitProgression(Strategy):
             True if the bankroll can't cover the smallest configured bet and no
             bets remain on the table, otherwise False.
         """
-        smallest_bet = min(
-            amount for stage in self.stages for amount in stage.values()
-        )
+        smallest_bet = min(amount for stage in self.stages for amount in stage.values())
         return player.bankroll < smallest_bet and len(player.bets) == 0
 
     def after_roll(self, player: Player) -> None:

@@ -986,7 +986,14 @@ class SqueezePlay(PlaceHitProgression):
     _INSIDE_INITIAL = {5: 15.0, 6: 18.0, 8: 18.0, 9: 15.0}  # $66 inside
     _INSIDE_PRESSED = {5: 20.0, 6: 24.0, 8: 24.0, 9: 20.0}  # $88 inside
     _OUTSIDE = {4: 10.0, 10: 10.0}
-    _ACROSS_FINAL = {4: 10.0, 5: 10.0, 6: 12.0, 8: 12.0, 9: 10.0, 10: 10.0}  # $64 across
+    _ACROSS_FINAL = {
+        4: 10.0,
+        5: 10.0,
+        6: 12.0,
+        8: 12.0,
+        9: 10.0,
+        10: 10.0,
+    }  # $64 across
 
     def __init__(self) -> None:
         """Build the fixed four-stage squeeze progression."""
@@ -1039,7 +1046,7 @@ class DoubleTap(AggregateStrategy):
         """Build one independent double-tap progression per place number."""
         self.base_amount = float(base_amount)
         # 6 and 8 pay 7:6, so their bets must be multiples of $6.
-        six_eight_base = 6/5 * self.base_amount
+        six_eight_base = 6 / 5 * self.base_amount
 
         progressions = []
         for number in (6, 8):

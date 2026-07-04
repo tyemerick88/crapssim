@@ -708,7 +708,6 @@ def test_place_is_active_on_comeout_in_legacy_rules_mode():
     bet = Place(6, 12)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == 26
@@ -722,7 +721,6 @@ def test_place_follows_real_casino_rules_mode_if_come_out_working_policy_is_inva
     bet = Place(6, 12)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == 0
@@ -736,7 +734,6 @@ def test_place_stays_inactive_on_comeout_in_real_casino_mode():
     bet = Place(6, 10)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == 0
@@ -757,7 +754,6 @@ def test_explicit_false_overrides_legacy_comeout_behavior(bet, roll):
     table.settings["come_out_working_policy"] = "legacy"
 
     table.dice.fixed_roll(roll)
-
     result = bet.get_result(table)
 
     assert result.amount == 0
@@ -771,7 +767,6 @@ def test_place_always_working_overrides_real_casino_mode_win():
     bet = Place(6, 10, always_working=True)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.won
@@ -784,7 +779,6 @@ def test_place_always_working_overrides_real_casino_mode_loss():
     bet = Place(6, 10, always_working=True)
 
     table.dice.fixed_roll((3, 4))
-
     result = bet.get_result(table)
 
     assert result.lost
@@ -798,7 +792,6 @@ def test_place_always_working_overrides_real_casino_mode_no_action():
     bet = Place(6, 10, always_working=True)
 
     table.dice.fixed_roll((3, 5))
-
     result = bet.get_result(table)
 
     assert result.lost is False
@@ -814,7 +807,6 @@ def test_place_non_removing_win_credits_profit_only_to_bankroll():
     bet = Place(6, 6, always_working=True)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == pytest.approx(13)
@@ -828,7 +820,6 @@ def test_buy_stays_inactive_on_comeout_in_real_casino_mode():
     bet = Buy(6, 10)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == 0
@@ -841,7 +832,6 @@ def test_buy_always_working_overrides_real_casino_mode():
     bet = Buy(6, 10, always_working=True)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.won
@@ -854,7 +844,6 @@ def test_lay_stays_inactive_on_comeout_in_real_casino_mode():
     bet = Lay(6, 10)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == 0
@@ -867,7 +856,6 @@ def test_lay_always_working_overrides_real_casino_mode():
     bet = Lay(6, 10, always_working=True)
 
     table.dice.fixed_roll((3, 4))
-
     result = bet.get_result(table)
 
     assert result.won
@@ -880,7 +868,6 @@ def test_put_stays_inactive_on_comeout_in_real_casino_mode():
     bet = Put(6, 10)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.amount == 0
@@ -893,7 +880,6 @@ def test_put_always_working_overrides_real_casino_mode():
     bet = Put(6, 10, always_working=True)
 
     table.dice.fixed_roll((3, 3))
-
     result = bet.get_result(table)
 
     assert result.won
@@ -906,7 +892,6 @@ def test_dontcome_odds_work_on_comeout_in_real_casino_mode():
     bet = Odds(DontCome, 6, 10)
 
     table.dice.fixed_roll((3, 4))
-
     result = bet.get_result(table)
 
     assert result.won
@@ -915,10 +900,21 @@ def test_dontcome_odds_work_on_comeout_in_real_casino_mode():
 
 def test_dontcome_odds_work_on_comeout_in_legacy_mode():
     table = Table()
+    table.settings["come_out_working_policy"] = "legacy"
     bet = Odds(DontCome, 6, 10)
 
     table.dice.fixed_roll((3, 4))
+    result = bet.get_result(table)
 
+    assert result.won
+    assert result.remove is True
+
+
+def test_dontcome_odds_work_on_comeout_by_default():
+    table = Table()
+    bet = Odds(DontCome, 6, 10)
+
+    table.dice.fixed_roll((3, 4))
     result = bet.get_result(table)
 
     assert result.won
