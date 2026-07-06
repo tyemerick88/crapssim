@@ -971,6 +971,31 @@ def test_real_casino_policy_keeps_traveled_dontcome_working_on_come_out_classic(
     assert len(player.bets) == 0
 
 
+@pytest.mark.parametrize(
+    "comeout_roll, expected_bankroll",
+    [
+        ((3, 3), 90),
+        ((3, 4), 110),
+    ],
+)
+def test_dontcome_odds_always_working_false_pushes_on_comeout_triggers(
+    comeout_roll, expected_bankroll
+):
+    table = Table(rules=ClassicRules())
+    table.settings["come_out_working_policy"] = "real_casino"
+    table.add_player(bankroll=100, strategy=NullStrategy())
+    player = table.players[0]
+
+    table.point.number = 4
+    player.add_bet(DontCome(10, 6))
+    player.add_bet(Odds(DontCome, 6, 10, always_working=False))
+
+    table.fixed_run([(2, 2), comeout_roll], verbose=True)
+
+    assert player.bankroll == pytest.approx(expected_bankroll)
+    assert len(player.bets) == 0
+
+
 def test_dontcome_not_allowed_in_crapless_integration_even_with_policy_enabled():
     table = Table(rules=CraplessRules())
     table.settings["come_out_working_policy"] = "real_casino"
