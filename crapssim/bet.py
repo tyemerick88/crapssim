@@ -112,9 +112,44 @@ class BetResult:
     remove: bool
     """Flag indicating whether this bet result should be removed from table."""
     bet_amount: float = 0
-    """The monetary value of the original bet size. Needed only for bets that 
-    push and return the wager to the player. Default is zero for quick 
+    """The monetary value of the original bet size. Needed only for bets that
+    push and return the wager to the player. Default is zero for quick
     results that can define wins and losses by comparing against zero."""
+
+    @classmethod
+    def win(cls, *, profit: float, bet_amount: float, remove: bool) -> "BetResult":
+        """A winning bet.
+
+        Args:
+            profit: Winnings above the wager (payout only, principal excluded).
+            bet_amount: The original wager.
+            remove: Whether the wager comes off the table (True) or keeps
+                working (False). This flag alone decides whether the returned
+                principal is credited to the bankroll; see
+                :attr:`bankroll_change`.
+        """
+        return cls(amount=profit + bet_amount, remove=remove, bet_amount=bet_amount)
+
+    @classmethod
+    def lose(cls, *, cost: float, bet_amount: float) -> "BetResult":
+        """A losing bet, removed from the table.
+
+        Args:
+            cost: Amount lost. Equal to the wager for most bets, but may exceed
+                it when an upfront vig was paid.
+            bet_amount: The original wager.
+        """
+        return cls(amount=-cost, remove=True, bet_amount=bet_amount)
+
+    @classmethod
+    def push(cls, bet_amount: float) -> "BetResult":
+        """A tie: the wager is returned to the player and the bet removed."""
+        return cls(amount=bet_amount, remove=True, bet_amount=bet_amount)
+
+    @classmethod
+    def no_change(cls, bet_amount: float) -> "BetResult":
+        """No action this roll: the bet does nothing and stays on the table."""
+        return cls(amount=0, remove=False, bet_amount=bet_amount)
 
     @property
     def won(self) -> bool:
@@ -133,10 +168,15 @@ class BetResult:
 
     @property
     def bankroll_change(self) -> float:
-        """Calculates bankroll delta for this result.
+        """Cash credited to the bankroll for this result.
 
-        Results that keep a winning bet on the table should only credit net
-        profit, not returned principal.
+        The wager was already deducted when the bet was placed, so:
+
+        - loss or no-action (``amount <= 0``): nothing is credited.
+        - non-removing win: the wager stays working on the table, so only the
+          net profit is credited.
+        - removing win or push: the wager comes off the table, so the full
+          returned amount (principal plus any winnings) is credited.
         """
         if self.amount <= 0:
             return 0
@@ -290,35 +330,30 @@ class _WinningLosingNumbersBet(Bet, ABC):
         in a loss of the original bet amount. Otherwise the bet stays
         on the table.
         """
-        # When the point is off, some bets are configured to be "off" as well.
-        # In that case we must short-circuit before normal win/loss resolution so
-        # come-out 7/point hits/pushes are ignored until the bet is working again.
+        resolving_numbers = (
+            self.get_winning_numbers(table)
+            + self.get_losing_numbers(table)
+            + self.get_push_numbers(table)
+        )
         if (
             table.point.status == "Off"
             and not self.is_working_on_come_out(table)
-            and table.dice.total
-            in (
-                self.get_winning_numbers(table)
-                + self.get_losing_numbers(table)
-                + self.get_push_numbers(table)
-            )
+            and table.dice.total in resolving_numbers
         ):
-            return BetResult(amount=self.amount, remove=True, bet_amount=self.amount)
+            return BetResult.push(self.amount)
 
         if table.dice.total in self.get_winning_numbers(table):
-            result_amount = self.get_payout_ratio(table) * self.amount + self.amount
-            should_remove = True
+            return BetResult.win(
+                profit=self.get_payout_ratio(table) * self.amount,
+                bet_amount=self.amount,
+                remove=True,
+            )
         elif table.dice.total in self.get_losing_numbers(table):
-            result_amount = -1 * self.amount
-            should_remove = True
+            return BetResult.lose(cost=self.amount, bet_amount=self.amount)
         elif table.dice.total in self.get_push_numbers(table):
-            result_amount = self.amount
-            should_remove = True
+            return BetResult.push(self.amount)
         else:
-            result_amount = 0
-            should_remove = False
-
-        return BetResult(result_amount, should_remove, self.amount)
+            return BetResult.no_change(self.amount)
 
     @abstractmethod
     def get_winning_numbers(self, table: Table) -> list[int]:
@@ -839,7 +874,7 @@ class Put(_SimpleBet):
             and not self.is_working_on_come_out(table)
             and table.dice.total in (self.number, 7)
         ):
-            return BetResult(amount=0, remove=False, bet_amount=self.amount)
+            return BetResult.no_change(self.amount)
 
         return super().get_result(table)
 
@@ -928,25 +963,24 @@ class Place(_SimpleBet):
             and not self.is_working_on_come_out(table)
             and table.dice.total in (self.number, 7)
         ):
-            return BetResult(amount=0, remove=False, bet_amount=self.amount)
+            return BetResult.no_change(self.amount)
 
         if _come_out_working_policy(table.settings) == "legacy":
             # legacy support, tons of bets integration tests rely on old behavior
             return super().get_result(table)
 
         if table.dice.total == self.number:
-            # BetResult.bankroll_change subtracts bet_amount for non-removing wins, so include
-            # principal here to yield only the place-bet profit while keeping the wager on layout.
-            result_amount = self.payout_ratio * self.amount + self.amount
-            remove = False
+            # Place wins leave the wager working on the table (remove=False), so
+            # only the profit is credited to the bankroll.
+            return BetResult.win(
+                profit=self.payout_ratio * self.amount,
+                bet_amount=self.amount,
+                remove=False,
+            )
         elif table.dice.total == 7:
-            result_amount = -1 * self.amount
-            remove = True
+            return BetResult.lose(cost=self.amount, bet_amount=self.amount)
         else:
-            result_amount = 0
-            remove = False
-
-        return BetResult(result_amount, remove, self.amount)
+            return BetResult.no_change(self.amount)
 
     def is_working_on_come_out(self, table: Table) -> bool:
         if self.always_working is not None:
@@ -1050,20 +1084,17 @@ class Buy(_SimpleBet):
             and not self.is_working_on_come_out(table)
             and table.dice.total in (self.number, 7)
         ):
-            return BetResult(amount=0, remove=False, bet_amount=self.amount)
+            return BetResult.no_change(self.amount)
 
         if table.dice.total == self.number:
-            result_amount = self.payout_ratio * self.amount + self.amount
+            profit = self.payout_ratio * self.amount
             if table.settings.get("vig_paid_on_win", True):
-                result_amount -= self.vig(table)
-            remove = True
+                profit -= self.vig(table)
+            return BetResult.win(profit=profit, bet_amount=self.amount, remove=True)
         elif table.dice.total == 7:
-            result_amount = -1 * self.cost(table)
-            remove = True
+            return BetResult.lose(cost=self.cost(table), bet_amount=self.amount)
         else:
-            result_amount = 0
-            remove = False
-        return BetResult(result_amount, remove, self.amount)
+            return BetResult.no_change(self.amount)
 
     def is_allowed(self, player: "Player") -> bool:
         """Return whether this Buy bet number is legal and can be placed for
@@ -1154,20 +1185,17 @@ class Lay(_SimpleBet):
             and not self.is_working_on_come_out(table)
             and table.dice.total in (self.number, 7)
         ):
-            return BetResult(amount=0, remove=False, bet_amount=self.amount)
+            return BetResult.no_change(self.amount)
 
         if table.dice.total == 7:
-            result_amount = self.payout_ratio * self.amount + self.amount
+            profit = self.payout_ratio * self.amount
             if table.settings.get("vig_paid_on_win", True):
-                result_amount -= self.vig(table)
-            remove = True
+                profit -= self.vig(table)
+            return BetResult.win(profit=profit, bet_amount=self.amount, remove=True)
         elif table.dice.total == self.number:
-            result_amount = -self.cost(table)
-            remove = True
+            return BetResult.lose(cost=self.cost(table), bet_amount=self.amount)
         else:
-            result_amount = 0
-            remove = False
-        return BetResult(result_amount, remove, self.amount)
+            return BetResult.no_change(self.amount)
 
     def is_allowed(self, player: "Player") -> bool:
         """Return whether this Lay bet number is legal and can be placed for
@@ -1480,15 +1508,15 @@ class HardWay(Bet):
 
     def get_result(self, table: Table) -> BetResult:
         if table.dice.result == self.winning_result:
-            result_amount = self.payout_ratio * self.amount + self.amount
-            should_remove = True
+            return BetResult.win(
+                profit=self.payout_ratio * self.amount,
+                bet_amount=self.amount,
+                remove=True,
+            )
         elif table.dice.total in (7, self.number):
-            result_amount = -1 * self.amount
-            should_remove = True
+            return BetResult.lose(cost=self.amount, bet_amount=self.amount)
         else:
-            result_amount = 0
-            should_remove = False
-        return BetResult(result_amount, should_remove, self.amount)
+            return BetResult.no_change(self.amount)
 
     @property
     def winning_result(self) -> tuple[int, int]:
@@ -1535,12 +1563,12 @@ class Hop(Bet):
 
     def get_result(self, table: Table) -> BetResult:
         if table.dice.result in self.winning_results:
-            result_amount = self.payout_ratio(table) * self.amount + self.amount
-            should_remove = True
-        else:
-            result_amount = -1 * self.amount
-            should_remove = True
-        return BetResult(result_amount, should_remove, self.amount)
+            return BetResult.win(
+                profit=self.payout_ratio(table) * self.amount,
+                bet_amount=self.amount,
+                remove=True,
+            )
+        return BetResult.lose(cost=self.amount, bet_amount=self.amount)
 
     @property
     def is_easy(self) -> bool:
@@ -1603,7 +1631,7 @@ class Fire(Bet):
     def get_result(self, table: Table) -> BetResult:
 
         if table.point.status == "Off":
-            return BetResult(amount=0, remove=False, bet_amount=self.amount)
+            return BetResult.no_change(self.amount)
 
         if table.dice.total == table.point.number:
             self.points_made.add(table.point.number)
@@ -1613,15 +1641,16 @@ class Fire(Bet):
         n_points_made = len(self.points_made)
         ended = table.dice.total == 7 or len(self.points_made) == 6
 
-        if ended and n_points_made in table.settings["fire_payouts"]:
+        if not ended:
+            return BetResult.no_change(self.amount)
+        if n_points_made in table.settings["fire_payouts"]:
             payout_ratio = table.settings["fire_payouts"][n_points_made]
-            result_amount = payout_ratio * self.amount + self.amount
-        elif ended and n_points_made not in table.settings["fire_payouts"]:
-            result_amount = -1 * self.amount
-        else:
-            result_amount = 0
-
-        return BetResult(result_amount, remove=ended, bet_amount=self.amount)
+            return BetResult.win(
+                profit=payout_ratio * self.amount,
+                bet_amount=self.amount,
+                remove=True,
+            )
+        return BetResult.lose(cost=self.amount, bet_amount=self.amount)
 
     def is_removable(self, table: Table) -> bool:
         """Fire bet is removable only if there is a new shooter.
@@ -1660,16 +1689,15 @@ class _ATSBet(Bet):
 
         if self.numbers == list(self.rolled_numbers):
             payout_ratio = table.settings["ATS_payouts"][self.type]
-            result_amount = payout_ratio * self.amount + self.amount
-            should_remove = True
+            return BetResult.win(
+                profit=payout_ratio * self.amount,
+                bet_amount=self.amount,
+                remove=True,
+            )
         elif table.dice.total == 7:
-            result_amount = -1 * self.amount
-            should_remove = True
+            return BetResult.lose(cost=self.amount, bet_amount=self.amount)
         else:
-            result_amount = 0
-            should_remove = False
-
-        return BetResult(result_amount, should_remove, self.amount)
+            return BetResult.no_change(self.amount)
 
     def is_removable(self, table: Table) -> bool:
         """All/Tall/Small bets are removable only if the last roll was a 7
