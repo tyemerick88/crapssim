@@ -364,10 +364,6 @@ class _WinningLosingNumbersBet(Bet, ABC):
         """Returns the push numbers, based on table features and ruleset."""
         return []
 
-    def is_working_on_come_out(self, table: Table) -> bool:
-        """Return whether this bet should resolve while the point is off."""
-        return True
-
     @abstractmethod
     def get_payout_ratio(self, table: Table) -> float:
         """Returns the payout ratio (X to 1), based on table features."""
@@ -536,9 +532,6 @@ class Come(_WinningLosingNumbersBet):
         new_bet = self.__class__(self.amount, number=None)
         return new_bet
 
-    def is_working_on_come_out(self, table: Table) -> bool:
-        return True
-
     @property
     def _placed_key(self) -> Hashable:
         return type(self), self.number
@@ -658,9 +651,6 @@ class DontCome(_WinningLosingNumbersBet):
         new_bet = self.__class__(self.amount, number=None)
         return new_bet
 
-    def is_working_on_come_out(self, table: Table) -> bool:
-        return True
-
     @property
     def _placed_key(self) -> Hashable:
         return type(self), self.number
@@ -724,7 +714,12 @@ class Odds(_WinningLosingNumbersBet):
         """Whether this odds bet follows dont-pass/dont-come logic."""
         return issubclass(self.base_type, (DontPass, DontCome))
 
-    def is_working_on_come_out(self, table: Table) -> bool:
+    def is_working_on_come_out(self) -> bool:
+        """Whether the bet resolves while the point is off.
+
+        Defaults to false for all base_type bets except DontCome, but an explicit
+        ``always_working`` set on the bet overrides it.
+        """
         if self.always_working is not None:
             return self.always_working
         return issubclass(self.base_type, DontCome)
@@ -732,7 +727,7 @@ class Odds(_WinningLosingNumbersBet):
     def get_result(self, table: Table) -> BetResult:
         if (
             table.point.status == "Off"
-            and not self.is_working_on_come_out(table)
+            and not self.is_working_on_come_out()
             and table.dice.total
             in self.get_winning_numbers(table) + self.get_losing_numbers(table)
         ):
